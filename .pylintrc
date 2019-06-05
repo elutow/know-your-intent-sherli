@@ -1,0 +1,9 @@
+[MESSAGE CONTROL]
+disable=
+	bare-except,
+	bad-continuation,
+	invalid-name,
+	logging-fstring-interpolation,
+	missing-docstring,
+	too-many-arguments,
+	too-many-return-statements,
