@@ -1,0 +1,38 @@
+i would like to hear about google|search
+please tell me about javascript|search
+news about water and bottles|search
+
+i want to hear more about this article|elaborate
+more details|elaborate
+more details please|elaborate
+i want to hear more|elaborate
+tell me about what you just found|elaborate
+tell me more|elaborate
+say more please|elaborate
+please say more|elaborate
+please tell me more|elaborate
+please say more|elaborate
+say more|elaborate
+
+what am i searching|echo_query
+what did you search|echo_query
+what did you look up|echo_query
+say what was searched|echo_query
+repeat search query|echo_query
+tell me search query|echo_query
+
+sure|yes
+yes please|yes
+sure let's do it|yes
+sure|yes
+okay|yes
+yeah|yes
+yeah let's do it|yes
+
+no thanks|no
+no|no
+nope|no
+nah|no
+please no|no
+don't do it|no
+no no no|no

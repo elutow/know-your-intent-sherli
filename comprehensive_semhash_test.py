@@ -980,6 +980,227 @@ def evaluate_all_models():
 
         print(len(X_train))
 
+def train_classifiers(benchmark_dataset):
+    #Settings from the original paper
+    #benchmark_dataset = 'AskUbuntu'
+    oversample = True
+    synonym_extra_samples = True
+    augment_extra_samples = False
+    additional_synonyms = 0
+    additional_augments = 0
+    mistake_distance = 2.1
+    vectorizer_name = 'tfidf'
+
+    target_names = None
+    if benchmark_dataset == "Chatbot":
+        target_names = ["Departure Time", "Find Connection"]
+    elif benchmark_dataset == "AskUbuntu":
+        target_names = [
+            "Make Update", "Setup Printer", "Shutdown Computer",
+            "Software Recommendation", "None"
+        ]
+    elif benchmark_dataset == "WebApplication":
+        target_names = [
+            "Download Video", "Change Password", "None", "Export Data",
+            "Sync Accounts", "Filter Spam", "Find Alternative",
+            "Delete Account"
+        ]
+    elif benchmark_dataset == 'sherli':
+        target_names = [
+            'search',
+            'elaborate',
+            'echo_query',
+            'yes',
+            'no',
+        ]
+    assert(target_names)
+
+    if benchmark_dataset == "Chatbot":
+        intent_dict = {"DepartureTime": 0, "FindConnection": 1}
+    elif benchmark_dataset == "AskUbuntu":
+        intent_dict = {
+            "Make Update": 0,
+            "Setup Printer": 1,
+            "Shutdown Computer": 2,
+            "Software Recommendation": 3,
+            "None": 4
+        }
+    elif benchmark_dataset == "WebApplication":
+        intent_dict = {
+            "Download Video": 0,
+            "Change Password": 1,
+            "None": 2,
+            "Export Data": 3,
+            "Sync Accounts": 4,
+            "Filter Spam": 5,
+            "Find Alternative": 6,
+            "Delete Account": 7
+        }
+    elif benchmark_dataset == 'sherli':
+        intent_dict = dict((x, i) for x, i in zip(target_names, range(len(target_names))))
+        print(intent_dict)
+        with open("./datasets/KL/" + benchmark_dataset + "/train.input.csv") as input_csv_file:
+            content = input_csv_file.read().replace('|', '\t').replace('\n\n', '\n')
+            with open("./datasets/KL/" + benchmark_dataset + "/train.csv", 'w') as output_csv_file:
+                output_csv_file.write(content)
+
+    dataset = MeraDataset(
+        dataset_path="./datasets/KL/" + benchmark_dataset + "/train.csv",
+        mistake_distance=mistake_distance,
+        oversample=oversample,
+        augment_extra_samples=augment_extra_samples,
+        synonym_extra_samples=synonym_extra_samples,
+        additional_synonyms=additional_synonyms,
+        additional_augments=additional_augments)
+
+    splits = dataset.get_splits()
+    xS_train = []
+    yS_train = []
+    for elem in splits[0]["train"]["X"]:
+        xS_train.append(elem)
+
+    for elem in splits[0]["train"]["y"]:
+        yS_train.append(intent_dict[elem])
+
+    #filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
+    #filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
+    #X_train_raw, y_train_raw = read_CSV_datafile(
+    #    filename=filename_train, intent_dict=intent_dict)
+    #X_test_raw, y_test_raw = read_CSV_datafile(
+    #    filename=filename_test, intent_dict=intent_dict)
+    #X_test_raw = [utterance]
+    X_train_raw = xS_train
+    y_train_raw = yS_train
+
+    X_train_raw = semhash_corpus(X_train_raw)
+    #X_test_raw = semhash_corpus(X_test_raw)
+
+    #X_train, y_train, X_test, y_test, feature_names = data_for_training(
+    #    vectorizer_name=vectorizer_name,
+    #    X_train_raw=X_train_raw,
+    #    X_test_raw=X_test_raw,
+    #    y_train_raw=y_train_raw,
+    #    y_test_raw=y_test_raw)
+    y_train = y_train_raw
+    vectorizer, feature_names = get_vectorizer(X_train_raw, vectorizer_name)
+
+    X_train = vectorizer.transform(X_train_raw).toarray()
+    #X_test = vectorizer.transform(X_test_raw).toarray()
+
+    results = []
+    parameters_mlp = {
+        'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
+    }
+    parameters_RF = {
+        "n_estimators": [50, 60, 70],
+        "min_samples_leaf": [1, 11]
+    }
+    k_range = list(range(3, 7))
+    parameters_knn = {'n_neighbors': k_range}
+    knn = KNeighborsClassifier(n_neighbors=5)
+    classifiers = [
+        (RidgeClassifier(tol=1e-2, solver="lsqr"), "Ridge Classifier"),
+        (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
+        (GridSearchCV(
+            MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
+         "gridsearchmlp"),
+        (PassiveAggressiveClassifier(n_iter=50), "Passive-Aggressive"),
+        (GridSearchCV(
+            RandomForestClassifier(n_estimators=10),
+            parameters_RF,
+            cv=5), "gridsearchRF"),
+        (LinearSVC(penalty='l2', dual=False, tol=1e-3),
+         'LinearSVC, l2'),
+        (LinearSVC(penalty='l1', dual=False, tol=1e-3),
+         'LinearSVC, l1'),
+        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l2'),
+         'SGD, l2'),
+        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l1'),
+         'SGD, l1'),
+        (SGDClassifier(alpha=.0001, n_iter=50, penalty="elasticnet"),
+         'SGD with Elastic-Net penalty'),
+        (NearestCentroid(),
+         'NearestCentroid without threshold (aka Rocchio classifier)'),
+        (MultinomialNB(alpha=.01),
+         'Sparse Naive Bayes (MultinomialNB)'),
+        (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
+        # The smaller C, the stronger the regularization.
+        # The more regularization, the more sparsity.
+        (Pipeline([('feature_selection',
+                    SelectFromModel(
+                        LinearSVC(penalty="l1", dual=False,
+                                  tol=1e-3))),
+                   ('classification', LinearSVC(penalty="l2"))]),
+         'LinearSVC with L1-based feature selection'),
+        (KMeans(
+            n_clusters=2,
+            init='k-means++',
+            max_iter=300,
+            verbose=0,
+            random_state=0,
+            tol=1e-4), 'KMeans clustering'),
+        (LogisticRegression(
+            C=1.0,
+            class_weight=None,
+            dual=False,
+            fit_intercept=True,
+            intercept_scaling=1,
+            max_iter=100,
+            multi_class='ovr',
+            n_jobs=1,
+            penalty='l2',
+            random_state=None,
+            solver='liblinear',
+            tol=0.0001,
+            verbose=0,
+            warm_start=False), 'LogisticRegression'),
+    ]
+    for clf, name in classifiers:
+        print('=' * 80)
+        print(name)
+        clf.fit(X_train, y_train)
+        #result = benchmark(
+        #    clf=clf,
+        #    X_train=X_train,
+        #    y_train=y_train,
+        #    X_test=X_test,
+        #    y_test=y_test,
+        #    target_names=target_names,
+        #    feature_names=feature_names)
+        #results.append(result)
+    return classifiers, target_names, vectorizer
+
+def predict_intent(utterance, classifiers, target_names, vectorizer):
+    X_test_raw = [utterance]
+    X_test_raw = semhash_corpus(X_test_raw)
+    X_test = vectorizer.transform(X_test_raw).toarray()
+    for clf, name in classifiers:
+        print('=' * 80)
+        print(name)
+        result = clf.predict(X_test)
+        assert(len(result) == 1)
+        print('Intent:', target_names[result[0]])
+        if hasattr(clf, 'predict_proba'):
+            result_probs = clf.predict_proba(X_test)
+            assert(result_probs.shape[0] == 1)
+            for name, prob in zip(target_names, result_probs[0]):
+                print('{} probability: {}'.format(name, prob))
+
+def main():
+    while True:
+        try:
+            classifiers, target_names, vectorizer = train_classifiers(input('Benchmark dataset: '))
+            while True:
+                try:
+                    print('#'*80)
+                    predict_intent(input('Utterance: '), classifiers, target_names, vectorizer)
+                except KeyboardInterrupt:
+                    print()
+                    break
+        except KeyboardInterrupt:
+            print()
+            break
 
 if __name__ == '__main__':
-    evaluate_all_models()
+    main()
+
