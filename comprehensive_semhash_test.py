@@ -748,27 +748,9 @@ def evaluate_all_models():
         ['AskUbuntu', 'Chatbot', 'WebApplication'], [(True, True, False)], [0],
         [0], [2.1], ["tfidf"]):
 
-        if benchmark_dataset == "Chatbot":
-            intent_dict = {"DepartureTime": 0, "FindConnection": 1}
-        elif benchmark_dataset == "AskUbuntu":
-            intent_dict = {
-                "Make Update": 0,
-                "Setup Printer": 1,
-                "Shutdown Computer": 2,
-                "Software Recommendation": 3,
-                "None": 4
-            }
-        elif benchmark_dataset == "WebApplication":
-            intent_dict = {
-                "Download Video": 0,
-                "Change Password": 1,
-                "None": 2,
-                "Export Data": 3,
-                "Sync Accounts": 4,
-                "Filter Spam": 5,
-                "Find Alternative": 6,
-                "Delete Account": 7
-            }
+        target_names = _get_target_names(benchmark_dataset)
+
+        intent_dict = _get_intent_dict(benchmark_dataset, target_names)
 
         filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
         filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
@@ -859,20 +841,6 @@ def evaluate_all_models():
         for _ in enumerate(range(NUMBER_OF_RUNS_PER_SETTING)):
             i_s = 0
             print("Evaluating Split {}".format(i_s))
-            target_names = None
-            if benchmark_dataset == "Chatbot":
-                target_names = ["Departure Time", "Find Connection"]
-            elif benchmark_dataset == "AskUbuntu":
-                target_names = [
-                    "Make Update", "Setup Printer", "Shutdown Computer",
-                    "Software Recommendation", "None"
-                ]
-            elif benchmark_dataset == "WebApplication":
-                target_names = [
-                    "Download Video", "Change Password", "None", "Export Data",
-                    "Sync Accounts", "Filter Spam", "Find Alternative",
-                    "Delete Account"
-                ]
             print("Train Size: {}\nTest Size: {}".format(
                 X_train.shape[0], X_test.shape[0]))
             results = []
@@ -980,17 +948,7 @@ def evaluate_all_models():
 
         print(len(X_train))
 
-def train_classifiers(benchmark_dataset):
-    #Settings from the original paper
-    #benchmark_dataset = 'AskUbuntu'
-    oversample = True
-    synonym_extra_samples = True
-    augment_extra_samples = False
-    additional_synonyms = 0
-    additional_augments = 0
-    mistake_distance = 2.1
-    vectorizer_name = 'tfidf'
-
+def _get_target_names(benchmark_dataset):
     target_names = None
     if benchmark_dataset == "Chatbot":
         target_names = ["Departure Time", "Find Connection"]
@@ -1006,15 +964,13 @@ def train_classifiers(benchmark_dataset):
             "Delete Account"
         ]
     elif benchmark_dataset == 'sherli':
-        target_names = [
-            'search',
-            'elaborate',
-            'echo_query',
-            'yes',
-            'no',
-        ]
-    assert(target_names)
+        with open("./datasets/KL/" + benchmark_dataset + "/intents.txt") as intent_file:
+            target_names = list(x for x in intent_file.read().splitlines() if x)
+    assert target_names
 
+    return target_names
+
+def _get_intent_dict(benchmark_dataset, target_names):
     if benchmark_dataset == "Chatbot":
         intent_dict = {"DepartureTime": 0, "FindConnection": 1}
     elif benchmark_dataset == "AskUbuntu":
@@ -1038,11 +994,23 @@ def train_classifiers(benchmark_dataset):
         }
     elif benchmark_dataset == 'sherli':
         intent_dict = dict((x, i) for x, i in zip(target_names, range(len(target_names))))
-        print(intent_dict)
-        with open("./datasets/KL/" + benchmark_dataset + "/train.input.csv") as input_csv_file:
-            content = input_csv_file.read().replace('|', '\t').replace('\n\n', '\n')
-            with open("./datasets/KL/" + benchmark_dataset + "/train.csv", 'w') as output_csv_file:
-                output_csv_file.write(content)
+
+    return intent_dict
+
+def train_classifiers(benchmark_dataset):
+    #Settings from the original paper
+    #benchmark_dataset = 'AskUbuntu'
+    oversample = True
+    synonym_extra_samples = True
+    augment_extra_samples = False
+    additional_synonyms = 0
+    additional_augments = 0
+    mistake_distance = 2.1
+    vectorizer_name = 'tfidf'
+
+    target_names = _get_target_names(benchmark_dataset)
+
+    intent_dict = _get_intent_dict(benchmark_dataset, target_names)
 
     dataset = MeraDataset(
         dataset_path="./datasets/KL/" + benchmark_dataset + "/train.csv",
@@ -1082,12 +1050,12 @@ def train_classifiers(benchmark_dataset):
     #    y_train_raw=y_train_raw,
     #    y_test_raw=y_test_raw)
     y_train = y_train_raw
-    vectorizer, feature_names = get_vectorizer(X_train_raw, vectorizer_name)
+    vectorizer, _ = get_vectorizer(X_train_raw, vectorizer_name)
 
     X_train = vectorizer.transform(X_train_raw).toarray()
     #X_test = vectorizer.transform(X_test_raw).toarray()
 
-    results = []
+    #results = []
     parameters_mlp = {
         'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
     }
@@ -1178,18 +1146,28 @@ def predict_intent(utterance, classifiers, target_names, vectorizer):
         print('=' * 80)
         print(name)
         result = clf.predict(X_test)
-        assert(len(result) == 1)
+        assert len(result) == 1
         print('Intent:', target_names[result[0]])
         if hasattr(clf, 'predict_proba'):
             result_probs = clf.predict_proba(X_test)
-            assert(result_probs.shape[0] == 1)
-            for name, prob in zip(target_names, result_probs[0]):
-                print('{} probability: {}'.format(name, prob))
+            assert result_probs.shape[0] == 1
+            for proba_name, prob in zip(target_names, result_probs[0]):
+                print('{} probability: {}'.format(proba_name, prob))
+
+def _generate_sherli_datasets():
+    benchmark_dataset = 'sherli'
+    with open("./datasets/KL/" + benchmark_dataset + "/orig_data.csv") as input_csv_file:
+        content = input_csv_file.read().replace('|', '\t').replace('\n\n', '\n')
+        with open("./datasets/KL/" + benchmark_dataset + "/train.csv", 'w') as output_csv_file:
+            output_csv_file.write(content)
 
 def main():
     while True:
         try:
-            classifiers, target_names, vectorizer = train_classifiers(input('Benchmark dataset: '))
+            benchmark_dataset = input('Benchmark dataset: ')
+            if benchmark_dataset == 'sherli':
+                _generate_sherli_datasets()
+            classifiers, target_names, vectorizer = train_classifiers(benchmark_dataset)
             while True:
                 try:
                     print('#'*80)
@@ -1203,4 +1181,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

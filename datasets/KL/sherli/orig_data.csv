@@ -1,6 +1,8 @@
 i would like to hear about google|search
 please tell me about javascript|search
 news about water and bottles|search
+i want news about web browsers excluding movies|search
+could you search about blankets excluding cloth including sodium|search
 
 i want to hear more about this article|elaborate
 more details|elaborate
@@ -13,6 +15,7 @@ please say more|elaborate
 please tell me more|elaborate
 please say more|elaborate
 say more|elaborate
+i want more|elaborate
 
 what am i searching|echo_query
 what did you search|echo_query
@@ -28,6 +31,8 @@ sure|yes
 okay|yes
 yeah|yes
 yeah let's do it|yes
+please do it|yes
+please lets do it|yes
 
 no thanks|no
 no|no
@@ -36,3 +41,6 @@ nah|no
 please no|no
 don't do it|no
 no no no|no
+please don't do it|no
+no thank you|no
+thank you but no|no
