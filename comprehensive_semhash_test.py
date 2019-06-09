@@ -1,4 +1,3 @@
-from itertools import product
 from time import time
 import csv
 import math
@@ -75,10 +74,11 @@ import spacy
 #
 # python -m spacy download en_core_web_lg
 # !python -m spacy download en_core_web_lg
+print('INFO: Loading spacy...')
 NLP = spacy.load('en_core_web_lg')
 NOUNS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('n')}
 VERBS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('v')}
-print('Running')
+print('INFO: Done')
 
 # for hyper_bench in ['AskUbuntu', 'Chatbot', 'WebApplication']:
 #     benchmark_dataset = hyper
@@ -528,8 +528,13 @@ def read_CSV_datafile(filename, intent_dict):
     with open(filename, 'r') as csvfile:
         reader = csv.reader(csvfile, delimiter='\t')
         for row in reader:
-            X.append(row[0])
-            y.append(intent_dict[row[1]])
+            try:
+                y.append(intent_dict[row[1]])
+            except KeyError:
+                # Ignore unknown intent
+                print('WARN: Ignored unknown intent {}'.format(row[1]))
+            else:
+                X.append(row[0])
             #if benchmark_dataset == 'AskUbuntu':
             #    y.append(intent_dict[row[1]])
             #elif benchmark_dataset == 'Chatbot':
@@ -613,23 +618,24 @@ def trim(s):
 
 # #############################################################################
 # Benchmark classifiers
-def benchmark(clf,
-              X_train,
-              y_train,
-              X_test,
-              y_test,
-              target_names,
-              #benchmark_dataset,
-              #oversample,
-              #synonym_extra_samples,
-              #augment_extra_samples,
-              #additional_synonyms,
-              #additional_augments,
-              #mistake_distance,
-              print_report=True,
-              feature_names=None,
-              print_top10=False,
-              print_cm=True):
+def benchmark(
+        clf,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        target_names,
+        #benchmark_dataset,
+        #oversample,
+        #synonym_extra_samples,
+        #augment_extra_samples,
+        #additional_synonyms,
+        #additional_augments,
+        #mistake_distance,
+        print_report=True,
+        feature_names=None,
+        print_top10=False,
+        print_cm=True):
     print('_' * 80)
     print("Training: ")
     print(clf)
@@ -740,213 +746,218 @@ def data_for_training(vectorizer_name, X_train_raw, X_test_raw, y_train_raw,
     return X_train, y_train_raw, X_test, y_test_raw, feature_names
 
 
-def evaluate_all_models():
+def evaluate_dataset(benchmark_dataset):
     #Settings from the original paper
-    for benchmark_dataset, (
-            oversample, synonym_extra_samples, augment_extra_samples
-    ), additional_synonyms, additional_augments, mistake_distance, vectorizer_name in product(
-        ['AskUbuntu', 'Chatbot', 'WebApplication'], [(True, True, False)], [0],
-        [0], [2.1], ["tfidf"]):
+    oversample = True
+    synonym_extra_samples = True
+    augment_extra_samples = False
+    additional_synonyms = 0
+    additional_augments = 0
+    mistake_distance = 2.1
+    vectorizer_name = 'tfidf'
+    #for benchmark_dataset, (
+    #        oversample, synonym_extra_samples, augment_extra_samples
+    #), additional_synonyms, additional_augments, mistake_distance, vectorizer_name in product(
+    #    ['AskUbuntu', 'Chatbot', 'WebApplication'], [(True, True, False)], [0],
+    #    [0], [2.1], ["tfidf"]):
 
-        target_names = _get_target_names(benchmark_dataset)
+    target_names = _get_target_names(benchmark_dataset)
 
-        intent_dict = _get_intent_dict(benchmark_dataset, target_names)
+    intent_dict = _get_intent_dict(benchmark_dataset, target_names)
 
-        filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
-        filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
+    filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
+    filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
 
-        print("./datasets/KL/" + benchmark_dataset + "/train.csv")
-        #t0 = time()
-        dataset = MeraDataset(
-            dataset_path="./datasets/KL/" + benchmark_dataset + "/train.csv",
-            mistake_distance=mistake_distance,
-            oversample=oversample,
-            augment_extra_samples=augment_extra_samples,
-            synonym_extra_samples=synonym_extra_samples,
-            additional_synonyms=additional_synonyms,
-            additional_augments=additional_augments)
+    print("./datasets/KL/" + benchmark_dataset + "/train.csv")
+    #t0 = time()
+    dataset = MeraDataset(
+        dataset_path="./datasets/KL/" + benchmark_dataset + "/train.csv",
+        mistake_distance=mistake_distance,
+        oversample=oversample,
+        augment_extra_samples=augment_extra_samples,
+        synonym_extra_samples=synonym_extra_samples,
+        additional_synonyms=additional_synonyms,
+        additional_augments=additional_augments)
 
-        print("mera****************************")
-        splits = dataset.get_splits()
-        xS_train = []
-        yS_train = []
-        for elem in splits[0]["train"]["X"]:
-            xS_train.append(elem)
-        print(xS_train[:5])
+    print("mera****************************")
+    splits = dataset.get_splits()
+    xS_train = []
+    yS_train = []
 
-        for elem in splits[0]["train"]["y"]:
-            yS_train.append(intent_dict[elem])
-        #preprocess_time = time() - t0
-        print(len(xS_train))
+    for elem_x, elem_y in zip(splits[0]["train"]['X'],
+                              splits[0]['train']['y']):
+        try:
+            yS_train.append(intent_dict[elem_y])
+        except KeyError:
+            print('WARN: Ignored unknown intent "{}"'.format(elem_y))
+        else:
+            xS_train.append(elem_x)
+    #preprocess_time = time() - t0
+    print(xS_train[:5])
+    print(len(xS_train))
 
-        X_train_raw, y_train_raw = read_CSV_datafile(
-            filename=filename_train, intent_dict=intent_dict)
-        X_test_raw, y_test_raw = read_CSV_datafile(
-            filename=filename_test, intent_dict=intent_dict)
-        print(y_train_raw[:5])
-        print(X_test_raw[:5])
-        print(y_test_raw[:5])
-        X_train_raw = xS_train
-        y_train_raw = yS_train
+    X_train_raw, y_train_raw = read_CSV_datafile(
+        filename=filename_train, intent_dict=intent_dict)
+    X_test_raw, y_test_raw = read_CSV_datafile(
+        filename=filename_test, intent_dict=intent_dict)
+    print(y_train_raw[:5])
+    print(X_test_raw[:5])
+    print(y_test_raw[:5])
+    X_train_raw = xS_train
+    y_train_raw = yS_train
 
-        print("Training data samples: \n", X_train_raw, "\n\n")
+    print("Training data samples: \n", X_train_raw, "\n\n")
 
-        print("Class Labels: \n", y_train_raw, "\n\n")
+    print("Class Labels: \n", y_train_raw, "\n\n")
 
-        print("Size of Training Data: {}".format(len(X_train_raw)))
+    print("Size of Training Data: {}".format(len(X_train_raw)))
 
-        #
-        #
-        #
+    #
+    #
+    #
 
-        #t0 = time()
-        X_train_raw = semhash_corpus(X_train_raw)
-        X_test_raw = semhash_corpus(X_test_raw)
-        #semhash_time = time() - t0
+    #t0 = time()
+    X_train_raw = semhash_corpus(X_train_raw)
+    X_test_raw = semhash_corpus(X_test_raw)
+    #semhash_time = time() - t0
 
-        print(X_train_raw[:5])
-        print(y_train_raw[:5])
-        print()
-        print(X_test_raw[:5])
-        print(y_test_raw[:5])
+    print(X_train_raw[:5])
+    print(y_train_raw[:5])
+    print()
+    print(X_test_raw[:5])
+    print(y_test_raw[:5])
 
-        #t0 = time()
-        X_train, y_train, X_test, y_test, feature_names = data_for_training(
-            vectorizer_name=vectorizer_name,
-            X_train_raw=X_train_raw,
-            X_test_raw=X_test_raw,
-            y_train_raw=y_train_raw,
-            y_test_raw=y_test_raw)
-        #vectorize_time = time() - t0
+    #t0 = time()
+    X_train, y_train, X_test, y_test, feature_names = data_for_training(
+        vectorizer_name=vectorizer_name,
+        X_train_raw=X_train_raw,
+        X_test_raw=X_test_raw,
+        y_train_raw=y_train_raw,
+        y_test_raw=y_test_raw)
+    #vectorize_time = time() - t0
 
-        #with open("./" + METADATA_FILE, 'a', encoding='utf8') as csvFile:
-        #    fileWriter = csv.writer(csvFile, delimiter='\t')
-        #    fileWriter.writerow([
-        #        benchmark_dataset,
-        #        str(oversample),
-        #        str(synonym_extra_samples),
-        #        str(augment_extra_samples),
-        #        str(additional_synonyms),
-        #        str(additional_augments),
-        #        str(mistake_distance),
-        #        str(preprocess_time),
-        #        str(semhash_time),
-        #        str(vectorize_time)
-        #    ])
+    #with open("./" + METADATA_FILE, 'a', encoding='utf8') as csvFile:
+    #    fileWriter = csv.writer(csvFile, delimiter='\t')
+    #    fileWriter.writerow([
+    #        benchmark_dataset,
+    #        str(oversample),
+    #        str(synonym_extra_samples),
+    #        str(augment_extra_samples),
+    #        str(additional_synonyms),
+    #        str(additional_augments),
+    #        str(mistake_distance),
+    #        str(preprocess_time),
+    #        str(semhash_time),
+    #        str(vectorize_time)
+    #    ])
 
-        print(X_train[0].tolist())
-        print(y_train[0])
-        print(feature_names)
+    print(X_train[0].tolist())
+    print(y_train[0])
+    print(feature_names)
 
-        for _ in enumerate(range(NUMBER_OF_RUNS_PER_SETTING)):
-            i_s = 0
-            print("Evaluating Split {}".format(i_s))
-            print("Train Size: {}\nTest Size: {}".format(
-                X_train.shape[0], X_test.shape[0]))
-            results = []
-            #alphas = np.array([1,0.1,0.01,0.001,0.0001,0])
-            parameters_mlp = {
-                'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
-            }
-            parameters_RF = {
-                "n_estimators": [50, 60, 70],
-                "min_samples_leaf": [1, 11]
-            }
-            k_range = list(range(3, 7))
-            parameters_knn = {'n_neighbors': k_range}
-            knn = KNeighborsClassifier(n_neighbors=5)
-            for clf, name in [
-                (RidgeClassifier(tol=1e-2, solver="lsqr"), "Ridge Classifier"),
-                (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
-                (GridSearchCV(
-                    MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
-                 "gridsearchmlp"),
-                (PassiveAggressiveClassifier(n_iter=50), "Passive-Aggressive"),
-                (GridSearchCV(
-                    RandomForestClassifier(n_estimators=10),
-                    parameters_RF,
-                    cv=5), "gridsearchRF"),
-                (LinearSVC(penalty='l2', dual=False, tol=1e-3),
-                 'LinearSVC, l2'),
-                (LinearSVC(penalty='l1', dual=False, tol=1e-3),
-                 'LinearSVC, l1'),
-                (SGDClassifier(alpha=.0001, n_iter=50, penalty='l2'),
-                 'SGD, l2'),
-                (SGDClassifier(alpha=.0001, n_iter=50, penalty='l1'),
-                 'SGD, l1'),
-                (SGDClassifier(alpha=.0001, n_iter=50, penalty="elasticnet"),
-                 'SGD with Elastic-Net penalty'),
-                (NearestCentroid(),
-                 'NearestCentroid without threshold (aka Rocchio classifier)'),
-                (MultinomialNB(alpha=.01),
-                 'Sparse Naive Bayes (MultinomialNB)'),
-                (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
+    for _ in enumerate(range(NUMBER_OF_RUNS_PER_SETTING)):
+        i_s = 0
+        print("Evaluating Split {}".format(i_s))
+        print("Train Size: {}\nTest Size: {}".format(X_train.shape[0],
+                                                     X_test.shape[0]))
+        results = []
+        #alphas = np.array([1,0.1,0.01,0.001,0.0001,0])
+        parameters_mlp = {
+            'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
+        }
+        parameters_RF = {
+            "n_estimators": [50, 60, 70],
+            "min_samples_leaf": [1, 11]
+        }
+        k_range = list(range(3, 7))
+        parameters_knn = {'n_neighbors': k_range}
+        knn = KNeighborsClassifier(n_neighbors=5)
+        for clf, name in [
+            (RidgeClassifier(tol=1e-2, solver="lsqr"), "Ridge Classifier"),
+            (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
+            (GridSearchCV(
+                MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
+             "gridsearchmlp"),
+            (PassiveAggressiveClassifier(n_iter=50), "Passive-Aggressive"),
+            (GridSearchCV(
+                RandomForestClassifier(n_estimators=10), parameters_RF, cv=5),
+             "gridsearchRF"),
+            (LinearSVC(penalty='l2', dual=False, tol=1e-3), 'LinearSVC, l2'),
+            (LinearSVC(penalty='l1', dual=False, tol=1e-3), 'LinearSVC, l1'),
+            (SGDClassifier(alpha=.0001, n_iter=50, penalty='l2'), 'SGD, l2'),
+            (SGDClassifier(alpha=.0001, n_iter=50, penalty='l1'), 'SGD, l1'),
+            (SGDClassifier(alpha=.0001, n_iter=50, penalty="elasticnet"),
+             'SGD with Elastic-Net penalty'),
+            (NearestCentroid(),
+             'NearestCentroid without threshold (aka Rocchio classifier)'),
+            (MultinomialNB(alpha=.01), 'Sparse Naive Bayes (MultinomialNB)'),
+            (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
                 # The smaller C, the stronger the regularization.
                 # The more regularization, the more sparsity.
-                (Pipeline([('feature_selection',
-                            SelectFromModel(
-                                LinearSVC(penalty="l1", dual=False,
-                                          tol=1e-3))),
-                           ('classification', LinearSVC(penalty="l2"))]),
-                 'LinearSVC with L1-based feature selection'),
-                (KMeans(
-                    n_clusters=2,
-                    init='k-means++',
-                    max_iter=300,
-                    verbose=0,
-                    random_state=0,
-                    tol=1e-4), 'KMeans clustering'),
-                (LogisticRegression(
-                    C=1.0,
-                    class_weight=None,
-                    dual=False,
-                    fit_intercept=True,
-                    intercept_scaling=1,
-                    max_iter=100,
-                    multi_class='ovr',
-                    n_jobs=1,
-                    penalty='l2',
-                    random_state=None,
-                    solver='liblinear',
-                    tol=0.0001,
-                    verbose=0,
-                    warm_start=False), 'LogisticRegression'),
-            ]:
+            (Pipeline([('feature_selection',
+                        SelectFromModel(
+                            LinearSVC(penalty="l1", dual=False, tol=1e-3))),
+                       ('classification', LinearSVC(penalty="l2"))]),
+             'LinearSVC with L1-based feature selection'),
+            (KMeans(
+                n_clusters=2,
+                init='k-means++',
+                max_iter=300,
+                verbose=0,
+                random_state=0,
+                tol=1e-4), 'KMeans clustering'),
+            (LogisticRegression(
+                C=1.0,
+                class_weight=None,
+                dual=False,
+                fit_intercept=True,
+                intercept_scaling=1,
+                max_iter=100,
+                multi_class='ovr',
+                n_jobs=1,
+                penalty='l2',
+                random_state=None,
+                solver='liblinear',
+                tol=0.0001,
+                verbose=0,
+                warm_start=False), 'LogisticRegression'),
+        ]:
 
-                print('=' * 80)
-                print(name)
-                result = benchmark(
-                    clf=clf,
-                    X_train=X_train,
-                    y_train=y_train,
-                    X_test=X_test,
-                    y_test=y_test,
-                    target_names=target_names,
-                    #benchmark_dataset=benchmark_dataset,
-                    #oversample=oversample,
-                    #synonym_extra_samples=synonym_extra_samples,
-                    #augment_extra_samples=augment_extra_samples,
-                    #additional_synonyms=additional_synonyms,
-                    #additional_augments=additional_augments,
-                    #mistake_distance=mistake_distance,
-                    feature_names=feature_names)
-                results.append(result)
+            print('=' * 80)
+            print(name)
+            result = benchmark(
+                clf=clf,
+                X_train=X_train,
+                y_train=y_train,
+                X_test=X_test,
+                y_test=y_test,
+                target_names=target_names,
+                #benchmark_dataset=benchmark_dataset,
+                #oversample=oversample,
+                #synonym_extra_samples=synonym_extra_samples,
+                #augment_extra_samples=augment_extra_samples,
+                #additional_synonyms=additional_synonyms,
+                #additional_augments=additional_augments,
+                #mistake_distance=mistake_distance,
+                feature_names=feature_names)
+            results.append(result)
 
-            # print('parameters')
-            # print(clf.grid_scores_[0])
-            #print('CV Validation Score')
-            # print(clf.grid_scores_[0].cv_validation_scores)
-            # print('Mean Validation Score')
-            # print(clf.grid_scores_[0].mean_validation_score)
-            # grid_mean_scores = [result.mean_validation_score for result in clf.grid_scores_]
-            # print(grid_mean_scores)
-            # plt.plot(k_range, grid_mean_scores)
-            # plt.xlabel('Value of K for KNN')
-            # plt.ylabel('Cross-Validated Accuracy')
+        # print('parameters')
+        # print(clf.grid_scores_[0])
+        #print('CV Validation Score')
+        # print(clf.grid_scores_[0].cv_validation_scores)
+        # print('Mean Validation Score')
+        # print(clf.grid_scores_[0].mean_validation_score)
+        # grid_mean_scores = [result.mean_validation_score for result in clf.grid_scores_]
+        # print(grid_mean_scores)
+        # plt.plot(k_range, grid_mean_scores)
+        # plt.xlabel('Value of K for KNN')
+        # plt.ylabel('Cross-Validated Accuracy')
 
-            #plot_results(results)
+        #plot_results(results)
 
-        print(len(X_train))
+    print(len(X_train))
+
 
 def _get_target_names(benchmark_dataset):
     target_names = None
@@ -964,11 +975,14 @@ def _get_target_names(benchmark_dataset):
             "Delete Account"
         ]
     elif benchmark_dataset == 'sherli':
-        with open("./datasets/KL/" + benchmark_dataset + "/intents.txt") as intent_file:
-            target_names = list(x for x in intent_file.read().splitlines() if x)
+        with open("./datasets/KL/" + benchmark_dataset +
+                  "/intents.txt") as intent_file:
+            target_names = list(
+                x for x in intent_file.read().splitlines() if x)
     assert target_names
 
     return target_names
+
 
 def _get_intent_dict(benchmark_dataset, target_names):
     if benchmark_dataset == "Chatbot":
@@ -993,9 +1007,11 @@ def _get_intent_dict(benchmark_dataset, target_names):
             "Delete Account": 7
         }
     elif benchmark_dataset == 'sherli':
-        intent_dict = dict((x, i) for x, i in zip(target_names, range(len(target_names))))
+        intent_dict = dict(
+            (x, i) for x, i in zip(target_names, range(len(target_names))))
 
     return intent_dict
+
 
 def train_classifiers(benchmark_dataset):
     #Settings from the original paper
@@ -1028,7 +1044,11 @@ def train_classifiers(benchmark_dataset):
         xS_train.append(elem)
 
     for elem in splits[0]["train"]["y"]:
-        yS_train.append(intent_dict[elem])
+        try:
+            yS_train.append(intent_dict[elem])
+        except KeyError:
+            # Ignore intents not defined in intent list
+            print('WARN: Ignored unknown intent "{}"'.format(elem))
 
     #filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
     #filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
@@ -1059,45 +1079,34 @@ def train_classifiers(benchmark_dataset):
     parameters_mlp = {
         'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
     }
-    parameters_RF = {
-        "n_estimators": [50, 60, 70],
-        "min_samples_leaf": [1, 11]
-    }
+    parameters_RF = {"n_estimators": [50, 60, 70], "min_samples_leaf": [1, 11]}
     k_range = list(range(3, 7))
     parameters_knn = {'n_neighbors': k_range}
     knn = KNeighborsClassifier(n_neighbors=5)
     classifiers = [
         (RidgeClassifier(tol=1e-2, solver="lsqr"), "Ridge Classifier"),
         (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
-        (GridSearchCV(
-            MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
+        (GridSearchCV(MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
          "gridsearchmlp"),
         (PassiveAggressiveClassifier(n_iter=50), "Passive-Aggressive"),
         (GridSearchCV(
-            RandomForestClassifier(n_estimators=10),
-            parameters_RF,
-            cv=5), "gridsearchRF"),
-        (LinearSVC(penalty='l2', dual=False, tol=1e-3),
-         'LinearSVC, l2'),
-        (LinearSVC(penalty='l1', dual=False, tol=1e-3),
-         'LinearSVC, l1'),
-        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l2'),
-         'SGD, l2'),
-        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l1'),
-         'SGD, l1'),
+            RandomForestClassifier(n_estimators=10), parameters_RF, cv=5),
+         "gridsearchRF"),
+        (LinearSVC(penalty='l2', dual=False, tol=1e-3), 'LinearSVC, l2'),
+        (LinearSVC(penalty='l1', dual=False, tol=1e-3), 'LinearSVC, l1'),
+        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l2'), 'SGD, l2'),
+        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l1'), 'SGD, l1'),
         (SGDClassifier(alpha=.0001, n_iter=50, penalty="elasticnet"),
          'SGD with Elastic-Net penalty'),
         (NearestCentroid(),
          'NearestCentroid without threshold (aka Rocchio classifier)'),
-        (MultinomialNB(alpha=.01),
-         'Sparse Naive Bayes (MultinomialNB)'),
+        (MultinomialNB(alpha=.01), 'Sparse Naive Bayes (MultinomialNB)'),
         (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
         # The smaller C, the stronger the regularization.
         # The more regularization, the more sparsity.
         (Pipeline([('feature_selection',
                     SelectFromModel(
-                        LinearSVC(penalty="l1", dual=False,
-                                  tol=1e-3))),
+                        LinearSVC(penalty="l1", dual=False, tol=1e-3))),
                    ('classification', LinearSVC(penalty="l2"))]),
          'LinearSVC with L1-based feature selection'),
         (KMeans(
@@ -1138,6 +1147,7 @@ def train_classifiers(benchmark_dataset):
         #results.append(result)
     return classifiers, target_names, vectorizer
 
+
 def predict_intent(utterance, classifiers, target_names, vectorizer):
     X_test_raw = [utterance]
     X_test_raw = semhash_corpus(X_test_raw)
@@ -1154,30 +1164,81 @@ def predict_intent(utterance, classifiers, target_names, vectorizer):
             for proba_name, prob in zip(target_names, result_probs[0]):
                 print('{} probability: {}'.format(proba_name, prob))
 
+
 def _generate_sherli_datasets():
     benchmark_dataset = 'sherli'
-    with open("./datasets/KL/" + benchmark_dataset + "/orig_data.csv") as input_csv_file:
-        content = input_csv_file.read().replace('|', '\t').replace('\n\n', '\n')
-        with open("./datasets/KL/" + benchmark_dataset + "/train.csv", 'w') as output_csv_file:
-            output_csv_file.write(content)
+    with open("./datasets/KL/" + benchmark_dataset +
+              "/orig_data.csv") as input_csv_file:
+        #content = input_csv_file.read().replace('|', '\t').replace('\n\n', '\n')
+        orig_data = tuple(
+            x.split('|') for x in input_csv_file.read().splitlines() if x)
+    intent_to_examples = dict()
+    for example, intent in orig_data:
+        intent_to_examples.setdefault(intent, list()).append(example)
+    for intent in intent_to_examples:
+        random.shuffle(intent_to_examples[intent])
+    test_examples = list()
+    train_examples = list()
+    for intent in intent_to_examples:
+        intent_test_size = len(intent_to_examples[intent]) // 5
+        for _ in range(intent_test_size):
+            test_examples.append('{}\t{}'.format(
+                intent_to_examples[intent].pop(), intent))
+        while intent_to_examples[intent]:
+            train_examples.append('{}\t{}'.format(
+                intent_to_examples[intent].pop(), intent))
+    with open("./datasets/KL/" + benchmark_dataset + "/train.csv",
+              'w') as output_csv_file:
+        output_csv_file.write('\n'.join(train_examples))
+    with open("./datasets/KL/" + benchmark_dataset + "/test.csv",
+              'w') as output_csv_file:
+        output_csv_file.write('\n'.join(test_examples))
+
 
 def main():
+    _STATE_INIT = 0
+    _STATE_PREDICT = 1
+    _STATE_EVALUATE = 2
+    state = _STATE_INIT
     while True:
         try:
-            benchmark_dataset = input('Benchmark dataset: ')
-            if benchmark_dataset == 'sherli':
-                _generate_sherli_datasets()
-            classifiers, target_names, vectorizer = train_classifiers(benchmark_dataset)
-            while True:
-                try:
-                    print('#'*80)
-                    predict_intent(input('Utterance: '), classifiers, target_names, vectorizer)
-                except KeyboardInterrupt:
-                    print()
-                    break
+            if state == _STATE_INIT:
+                user_input = input(
+                    'Specify action (predict, evaluate): ').lower().strip()
+                if user_input == 'evaluate':
+                    state = _STATE_EVALUATE
+                elif user_input == 'predict':
+                    state = _STATE_PREDICT
+                else:
+                    print('ERROR: Invalid action. Specify again.')
+                    state = _STATE_INIT
+            elif state == _STATE_EVALUATE:
+                benchmark_dataset = input('Dataset to evaluate: ')
+                if benchmark_dataset == 'sherli':
+                    _generate_sherli_datasets()
+                evaluate_dataset(benchmark_dataset)
+            elif state == _STATE_PREDICT:
+                benchmark_dataset = input('Dataset to predict: ')
+                if benchmark_dataset == 'sherli':
+                    _generate_sherli_datasets()
+                classifiers, target_names, vectorizer = train_classifiers(
+                    benchmark_dataset)
+                while True:
+                    try:
+                        print('#' * 80)
+                        predict_intent(
+                            input('Utterance: '), classifiers, target_names,
+                            vectorizer)
+                    except KeyboardInterrupt:
+                        print()
+                        break
         except KeyboardInterrupt:
             print()
-            break
+            if state in (_STATE_PREDICT, _STATE_EVALUATE):
+                state = _STATE_INIT
+            else:
+                break
+
 
 if __name__ == '__main__':
     main()
