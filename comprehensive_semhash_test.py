@@ -1,31 +1,23 @@
 from time import time
+from collections import OrderedDict
 import csv
 import math
 import random
 
-from collections import OrderedDict
-from nltk.corpus import wordnet
-from sklearn import metrics
-from sklearn.cluster import KMeans
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer, CountVectorizer
-from sklearn.feature_selection import SelectFromModel
-from sklearn.linear_model import LogisticRegression
-from sklearn.linear_model import PassiveAggressiveClassifier
-from sklearn.linear_model import RidgeClassifier
-from sklearn.linear_model import SGDClassifier
-from sklearn.model_selection import GridSearchCV
-from sklearn.naive_bayes import BernoulliNB, MultinomialNB
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.neighbors import NearestCentroid
-from sklearn.neural_network import MLPClassifier
-from sklearn.pipeline import Pipeline
-from sklearn.svm import LinearSVC
-from sklearn.utils.extmath import density
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 import spacy
+from nltk.corpus import wordnet
+from sklearn import metrics
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction.text import TfidfVectorizer, HashingVectorizer, CountVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import GridSearchCV
+from sklearn.naive_bayes import BernoulliNB, MultinomialNB
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neural_network import MLPClassifier
+from sklearn.utils.extmath import density
+from tqdm import tqdm
 
 # ## Benchmarking using SemHash on NLU Evaluation Corpora
 #
@@ -80,19 +72,6 @@ _NOUNS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('n')}
 _VERBS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('v')}
 print('INFO: Done')
 
-# for hyper_bench in ['AskUbuntu', 'Chatbot', 'WebApplication']:
-#     benchmark_dataset = hyper
-
-#     for hyper_over in [True, False]:
-#         oversample = hyper_over
-
-#         for hyper_syn_extra in [True, False]:
-#             synonym_extra_samples = hyper_syn_extra
-
-#             for hyper_aug in [True, False]:
-#                 augm
-
-
 def get_synonyms(word, number=3):
     synonyms = []
     for syn in wordnet.synsets(word):
@@ -100,7 +79,6 @@ def get_synonyms(word, number=3):
             synonyms.append(l.name().lower().replace("_", " "))
     synonyms = list(OrderedDict.fromkeys(synonyms))
     return synonyms[:number]
-    #return [token.text for token in most_similar(nlp.vocab[word])]
 
 
 #Hyperparameters
@@ -518,17 +496,6 @@ def read_CSV_datafile(filename, intent_dict):
     return X, y
 
 
-#def tokenize(doc):
-#    """
-#    Returns a list of strings containing each token in `sentence`
-#    """
-#    tokens = []
-#    doc = _NLP.tokenizer(doc)
-#    for token in doc:
-#        tokens.append(token.text)
-#    return tokens
-
-
 def preprocess(doc):
     clean_tokens = []
     doc = _NLP(doc)
@@ -592,17 +559,16 @@ def trim(s):
 
 # #############################################################################
 # Benchmark classifiers
-def benchmark(
-        clf,
-        X_train,
-        y_train,
-        X_test,
-        y_test,
-        target_names,
-        print_report=True,
-        feature_names=None,
-        print_top10=False,
-        print_cm=True):
+def benchmark(clf,
+              X_train,
+              y_train,
+              X_test,
+              y_test,
+              target_names,
+              print_report=True,
+              feature_names=None,
+              print_top10=False,
+              print_cm=True):
     print('_' * 80)
     print("Training: ")
     print(clf)
@@ -655,34 +621,6 @@ def benchmark(
     return clf_descr, score, train_time, test_time, f1_score
 
 
-def plot_results(results):
-    # make some plots
-    indices = np.arange(len(results))
-
-    results = [[x[i] for x in results] for i in range(4)]
-
-    clf_names, score, training_time, test_time = results
-    training_time = np.array(training_time) / np.max(training_time)
-    test_time = np.array(test_time) / np.max(test_time)
-
-    plt.figure(figsize=(12, 8))
-    plt.title("Score")
-    plt.barh(indices, score, .2, label="score", color='navy')
-    plt.barh(indices + .3, training_time, .2, label="training time", color='c')
-    plt.barh(
-        indices + .6, test_time, .2, label="test time", color='darkorange')
-    plt.yticks(())
-    plt.legend(loc='best')
-    plt.subplots_adjust(left=.25)
-    plt.subplots_adjust(top=.95)
-    plt.subplots_adjust(bottom=.05)
-
-    for i, c in zip(indices, clf_names):
-        plt.text(-.3, i, c)
-
-    plt.show()
-
-
 def data_for_training(vectorizer_name, X_train_raw, X_test_raw, y_train_raw,
                       y_test_raw):
     vectorizer, feature_names = get_vectorizer(X_train_raw, vectorizer_name)
@@ -702,11 +640,6 @@ def evaluate_dataset(benchmark_dataset):
     additional_augments = 0
     mistake_distance = 2.1
     vectorizer_name = 'tfidf'
-    #for benchmark_dataset, (
-    #        oversample, synonym_extra_samples, augment_extra_samples
-    #), additional_synonyms, additional_augments, mistake_distance, vectorizer_name in product(
-    #    ['AskUbuntu', 'Chatbot', 'WebApplication'], [(True, True, False)], [0],
-    #    [0], [2.1], ["tfidf"]):
 
     target_names = _get_target_names(benchmark_dataset)
 
@@ -783,39 +716,17 @@ def evaluate_dataset(benchmark_dataset):
         parameters_knn = {'n_neighbors': k_range}
         knn = KNeighborsClassifier(n_neighbors=5)
         for clf, name in [
-            (RidgeClassifier(tol=1e-2, solver="lsqr"), "Ridge Classifier"),
             (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
             (GridSearchCV(
                 MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
              "gridsearchmlp"),
-            (PassiveAggressiveClassifier(n_iter=50), "Passive-Aggressive"),
             (GridSearchCV(
                 RandomForestClassifier(n_estimators=10), parameters_RF, cv=5),
              "gridsearchRF"),
-            (LinearSVC(penalty='l2', dual=False, tol=1e-3), 'LinearSVC, l2'),
-            (LinearSVC(penalty='l1', dual=False, tol=1e-3), 'LinearSVC, l1'),
-            (SGDClassifier(alpha=.0001, n_iter=50, penalty='l2'), 'SGD, l2'),
-            (SGDClassifier(alpha=.0001, n_iter=50, penalty='l1'), 'SGD, l1'),
-            (SGDClassifier(alpha=.0001, n_iter=50, penalty="elasticnet"),
-             'SGD with Elastic-Net penalty'),
-            (NearestCentroid(),
-             'NearestCentroid without threshold (aka Rocchio classifier)'),
             (MultinomialNB(alpha=.01), 'Sparse Naive Bayes (MultinomialNB)'),
             (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
                 # The smaller C, the stronger the regularization.
                 # The more regularization, the more sparsity.
-            (Pipeline([('feature_selection',
-                        SelectFromModel(
-                            LinearSVC(penalty="l1", dual=False, tol=1e-3))),
-                       ('classification', LinearSVC(penalty="l2"))]),
-             'LinearSVC with L1-based feature selection'),
-            (KMeans(
-                n_clusters=2,
-                init='k-means++',
-                max_iter=300,
-                verbose=0,
-                random_state=0,
-                tol=1e-4), 'KMeans clustering'),
             (LogisticRegression(
                 C=1.0,
                 class_weight=None,
@@ -926,15 +837,14 @@ def train_classifiers(benchmark_dataset):
     splits = dataset.get_splits()
     xS_train = []
     yS_train = []
-    for elem in splits[0]["train"]["X"]:
-        xS_train.append(elem)
-
-    for elem in splits[0]["train"]["y"]:
+    for elem_x, elem_y in zip(splits[0]["train"]['X'],
+                              splits[0]['train']['y']):
         try:
-            yS_train.append(intent_dict[elem])
+            yS_train.append(intent_dict[elem_y])
         except KeyError:
-            # Ignore intents not defined in intent list
-            print('WARN: Ignored unknown intent "{}"'.format(elem))
+            print('WARN: Ignored unknown intent "{}"'.format(elem_y))
+        else:
+            xS_train.append(elem_x)
 
     X_train_raw = xS_train
     y_train_raw = yS_train
@@ -953,38 +863,16 @@ def train_classifiers(benchmark_dataset):
     parameters_knn = {'n_neighbors': k_range}
     knn = KNeighborsClassifier(n_neighbors=5)
     classifiers = [
-        (RidgeClassifier(tol=1e-2, solver="lsqr"), "Ridge Classifier"),
         (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
         (GridSearchCV(MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
          "gridsearchmlp"),
-        (PassiveAggressiveClassifier(n_iter=50), "Passive-Aggressive"),
         (GridSearchCV(
             RandomForestClassifier(n_estimators=10), parameters_RF, cv=5),
          "gridsearchRF"),
-        (LinearSVC(penalty='l2', dual=False, tol=1e-3), 'LinearSVC, l2'),
-        (LinearSVC(penalty='l1', dual=False, tol=1e-3), 'LinearSVC, l1'),
-        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l2'), 'SGD, l2'),
-        (SGDClassifier(alpha=.0001, n_iter=50, penalty='l1'), 'SGD, l1'),
-        (SGDClassifier(alpha=.0001, n_iter=50, penalty="elasticnet"),
-         'SGD with Elastic-Net penalty'),
-        (NearestCentroid(),
-         'NearestCentroid without threshold (aka Rocchio classifier)'),
         (MultinomialNB(alpha=.01), 'Sparse Naive Bayes (MultinomialNB)'),
         (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
         # The smaller C, the stronger the regularization.
         # The more regularization, the more sparsity.
-        (Pipeline([('feature_selection',
-                    SelectFromModel(
-                        LinearSVC(penalty="l1", dual=False, tol=1e-3))),
-                   ('classification', LinearSVC(penalty="l2"))]),
-         'LinearSVC with L1-based feature selection'),
-        (KMeans(
-            n_clusters=2,
-            init='k-means++',
-            max_iter=300,
-            verbose=0,
-            random_state=0,
-            tol=1e-4), 'KMeans clustering'),
         (LogisticRegression(
             C=1.0,
             class_weight=None,
@@ -1032,7 +920,12 @@ def _generate_sherli_datasets():
         orig_data = tuple(
             x.split('|') for x in input_csv_file.read().splitlines() if x)
     intent_to_examples = dict()
-    for example, intent in orig_data:
+    for entry in orig_data:
+        try:
+            example, intent = entry
+        except ValueError as exc:
+            print(f'ERROR: Example is malformed: {entry}')
+            raise exc
         intent_to_examples.setdefault(intent, list()).append(example)
     for intent in intent_to_examples:
         random.shuffle(intent_to_examples[intent])
