@@ -1,10 +1,10 @@
-from time import time
 from collections import OrderedDict
+from pathlib import Path
+from time import time
 import csv
 import math
 import random
 
-import matplotlib.pyplot as plt
 import numpy as np
 import spacy
 from nltk.corpus import wordnet
@@ -17,20 +17,8 @@ from sklearn.naive_bayes import BernoulliNB, MultinomialNB
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.neural_network import MLPClassifier
 from sklearn.utils.extmath import density
-from tqdm import tqdm
 
-# ## Benchmarking using SemHash on NLU Evaluation Corpora
-#
-# This notebook benchmarks the results on the 3 NLU Evaluation Corpora:
-# 1. Ask Ubuntu Corpus
-# 2. Chatbot Corpus
-# 3. Web Application Corpus
-#
-#
-# More information about the dataset is available here:
-#
-# https://github.com/sebischair/NLU-Evaluation-Corpora
-#
+# ## Benchmarking using SemHash
 #
 # * Semantic Hashing is used as a featurizer. The idea is taken from the paper:
 #
@@ -61,16 +49,54 @@ from tqdm import tqdm
 #
 #
 
-# Spacy english dataset with vectors needs to be present.
-# It can be downloaded using the following command:
-#
-# python -m spacy download en_core_web_lg
-# !python -m spacy download en_core_web_lg
-print('INFO: Loading spacy...')
-_NLP = spacy.load('en_core_web_lg')
-_NOUNS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('n')}
-_VERBS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('v')}
-print('INFO: Done')
+#Hyperparameters
+# Whether to oversample small classes or not. True in the paper
+_OVERSAMPLE = True
+
+# Whether to replace words by synonyms in the oversampled samples. True in the paper
+_SYNONYM_EXTRA_SAMPLES = True
+
+# Whether to add random spelling mistakes in the oversampled samples. False in the paper
+_AUGMENT_EXTRA_SAMPLES = False
+
+# How many extra synonym augmented sentences to add for each sentence. 0 in the paper
+_ADDITIONAL_SYNONYMS = 0
+
+# How many extra spelling mistake augmented sentences to add for each sentence. 0 in the paper
+# (NO LONGER IMPLEMENTED)
+#additional_augments = -1
+
+# How far away on the keyboard a mistake can be
+_MISTAKE_DISTANCE = 2.1
+
+# which vectorizer to use. choose between "count", "hash", and "tfidf"
+_VECTORIZER_NAME = 'tfidf'
+
+NUMBER_OF_RUNS_PER_SETTING = 1
+
+# Runtime utilities
+_DATASET_PREFIX = Path(__file__).resolve().parent / 'datasets'
+_NLP = None
+_NOUNS = None
+_VERBS = None
+_INITIALIZED = False
+
+
+def initialize():
+    global _NLP, _NOUNS, _VERBS, _INITIALIZED #pylint: disable=global-statement
+    if _INITIALIZED:
+        return
+    print('INFO: Loading spacy and wordnet...')
+    # Spacy english dataset with vectors needs to be present.
+    # It can be downloaded using the following command:
+    #
+    # python -m spacy download en_core_web_lg
+    # !python -m spacy download en_core_web_lg
+    _NLP = spacy.load('en_core_web_lg')
+    _NOUNS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('n')}
+    _VERBS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('v')}
+    _INITIALIZED = True
+    print('INFO: Done')
 
 def get_synonyms(word, number=3):
     synonyms = []
@@ -81,37 +107,6 @@ def get_synonyms(word, number=3):
     return synonyms[:number]
 
 
-#Hyperparameters
-# Choose from 'AskUbuntu', 'Chatbot' or 'WebApplication'
-#benchmark_dataset = ''
-
-# Whether to oversample small classes or not. True in the paper
-#oversample = False
-
-# Whether to replace words by synonyms in the oversampled samples. True in the paper
-#synonym_extra_samples = False
-
-# Whether to add random spelling mistakes in the oversampled samples. False in the paper
-#augment_extra_samples = False
-
-# How many extra synonym augmented sentences to add for each sentence. 0 in the paper
-#additional_synonyms = -1
-
-# How many extra spelling mistake augmented sentences to add for each sentence. 0 in the paper
-#additional_augments = -1
-
-# How far away on the keyboard a mistake can be
-#mistake_distance = -1
-
-# which vectorizer to use. choose between "count", "hash", and "tfidf"
-#VECTORIZER = ""
-
-#RESULT_FILE = "result5.csv"
-#METADATA_FILE = "metadata5.csv"
-#NUMBER_OF_RUNS_PER_SETTING = 10
-NUMBER_OF_RUNS_PER_SETTING = 1
-
-
 #********* Data augmentation part **************
 class MeraDataset:
     """ Class to find typos based on the keyboard distribution, for QWERTY style keyboards
@@ -120,7 +115,7 @@ class MeraDataset:
 
     def __init__(self, dataset_path, mistake_distance, oversample,
                  augment_extra_samples, synonym_extra_samples,
-                 additional_synonyms, additional_augments):
+                 additional_synonyms):
         """ Instantiate the object.
             @param: dataset_path The directory which contains the data set."""
         self.dataset_path = dataset_path
@@ -253,8 +248,7 @@ class MeraDataset:
             oversample=oversample,
             augment_extra_samples=augment_extra_samples,
             synonym_extra_samples=synonym_extra_samples,
-            additional_synonyms=additional_synonyms,
-            additional_augments=additional_augments)
+            additional_synonyms=additional_synonyms)
 
     def get_nearest_to_i(self, keyboard_cartesian, mistake_distance):
         """ Get the nearest key to the one read.
@@ -301,43 +295,11 @@ class MeraDataset:
         return ' '.join(
             [self._shuffle_word(item) for item in sentence.split(' ')])
 
-    def _augment_sentence(self, sentence, num_samples):
-        """ Augment the dataset of file with a sentence shuffled
-            @param: sentence The sentence from the set
-            @param: num_samples The number of sentences to genererate
-
-            return A set of augmented sentences"""
-        sentences = []
-        for _ in range(num_samples):
-            sentences.append(self._get_augment_sentence(sentence))
-        sentences = list(set(sentences))
-        return sentences + [sentence]
-
-    def _augment_split(self, X_train, y_train, num_samples=100):
-        """ Split the augmented train dataset
-            @param: X_train The full array of sentences
-            @param: y_train The train labels in the train dataset
-            @param: num_samples the number of new sentences to create (default 1000)
-
-            return Augmented training dataset"""
-        Xs, ys = [], []
-        for X, y in zip(X_train, y_train):
-            tmp_x = self._augment_sentence(X, num_samples)
-            for item in tmp_x:
-                Xs.append(item)
-                ys.append(y)
-
-        with open(
-                "./datasets/KL/Chatbot/train_augmented.csv", 'w',
-                encoding='utf8') as csvFile:
-            fileWriter = csv.writer(csvFile, delimiter='\t')
-            for i in range(0, len(Xs) - 1):
-                fileWriter.writerow([Xs[i] + '\t' + ys[i]])
-        return Xs, ys
-
     # Randomly replaces the nouns and verbs by synonyms
-    def _synonym_word(self, word, cutoff=0.5):
-        if random.uniform(0, 1.0) > cutoff and len(
+    @staticmethod
+    def _synonym_word(word, cutoff=0.5):
+        assert _INITIALIZED
+        if random.uniform(0, 1.0) > cutoff and len( #pylint: disable=len-as-condition
                 get_synonyms(word)) > 0 and word in _NOUNS and word in _VERBS:
             return random.choice(get_synonyms(word))
         return word
@@ -380,11 +342,6 @@ class MeraDataset:
                 Xs.append(sentence)
                 ys.append(y)
 
-        #with open(filename_train+"augment", 'w', encoding='utf8') as csvFile:
-        #    fileWriter = csv.writer(csvFile, delimiter='\t')
-        #    for i in range(0, len(Xs)-1):
-        #        fileWriter.writerow([Xs[i] + '\t' + ys[i]])
-
         return Xs, ys
 
     def _synonym_split(self, X_train, y_train, additional_synonyms=100):
@@ -406,40 +363,21 @@ class MeraDataset:
         """ Load the file for now only the test.csv, train.csv files hardcoded
 
             return The vector separated in test, train and the labels for each one"""
-        with open(self.dataset_path) as csvfile:
+        with (self.dataset_path / 'test.csv').open() as csvfile:
             readCSV = csv.reader(csvfile, delimiter='	')
             all_rows = list(readCSV)
             X_test = [a[0] for a in all_rows]
             y_test = [a[1] for a in all_rows]
 
-        with open(self.dataset_path) as csvfile:
+        with (self.dataset_path / 'train.csv').open() as csvfile:
             readCSV = csv.reader(csvfile, delimiter='\t')
             all_rows = list(readCSV)
             X_train = [a[0] for a in all_rows]
             y_train = [a[1] for a in all_rows]
         return X_test, y_test, X_train, y_train
 
-    def process_sentence(self, x):  #pylint: disable=no-self-use
-        """ Clean the tokens from stop words in a sentence.
-            @param x Sentence to get rid of stop words.
-
-            returns clean string sentence"""
-        clean_tokens = []
-        doc = _NLP.tokenizer(x)
-        for token in doc:
-            if not token.is_stop:
-                clean_tokens.append(token.lemma_)
-        return " ".join(clean_tokens)
-
-    def process_batch(self, X):
-        """See the progress as is coming along.
-
-            return list[] of clean sentences"""
-        return [self.process_sentence(a) for a in tqdm(X)]
-
     def stratified_split(self, oversample, augment_extra_samples,
-                         synonym_extra_samples, additional_synonyms,
-                         additional_augments):
+                         synonym_extra_samples, additional_synonyms):
         """ Split data whole into stratified test and training sets, then remove
             stop word from sentences
 
@@ -454,9 +392,6 @@ class MeraDataset:
         if additional_synonyms > 0:
             self.X_train, self.y_train = self._synonym_split(
                 self.X_train, self.y_train, additional_synonyms)
-        if additional_augments > 0:
-            self.X_train, self.y_train = self._augment_split(
-                self.X_train, self.y_train, additional_augments)
 
         splits = [{
             "train": {
@@ -480,10 +415,10 @@ class MeraDataset:
 #****************************************************
 
 
-def read_CSV_datafile(filename, intent_dict):
+def read_CSV_datafile(filepath, intent_dict):
     X = []
     y = []
-    with open(filename, 'r') as csvfile:
+    with filepath.open() as csvfile:
         reader = csv.reader(csvfile, delimiter='\t')
         for row in reader:
             try:
@@ -593,10 +528,7 @@ def benchmark(clf,
 
         if print_top10 and feature_names is not None:
             print("top 10 keywords per class:")
-            for i, label in enumerate([
-                    "Make Update", "Setup Printer", "Shutdown Computer",
-                    "Software Recommendation", "None"
-            ]):
+            for i, label in enumerate(target_names):
                 top10 = np.argsort(clf.coef_[i])[-10:]
                 print(
                     trim("%s: %s" % (label, " ".join(
@@ -632,31 +564,21 @@ def data_for_training(vectorizer_name, X_train_raw, X_test_raw, y_train_raw,
 
 
 def evaluate_dataset(benchmark_dataset):
-    #Settings from the original paper
-    oversample = True
-    synonym_extra_samples = True
-    augment_extra_samples = False
-    additional_synonyms = 0
-    additional_augments = 0
-    mistake_distance = 2.1
-    vectorizer_name = 'tfidf'
-
     target_names = _get_target_names(benchmark_dataset)
 
-    intent_dict = _get_intent_dict(benchmark_dataset, target_names)
+    intent_dict = _get_intent_dict(target_names)
 
-    filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
-    filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
+    filepath_train = _DATASET_PREFIX / benchmark_dataset / 'train.csv'
+    filepath_test = _DATASET_PREFIX / benchmark_dataset / 'test.csv'
 
     #t0 = time()
     dataset = MeraDataset(
-        dataset_path="./datasets/KL/" + benchmark_dataset + "/train.csv",
-        mistake_distance=mistake_distance,
-        oversample=oversample,
-        augment_extra_samples=augment_extra_samples,
-        synonym_extra_samples=synonym_extra_samples,
-        additional_synonyms=additional_synonyms,
-        additional_augments=additional_augments)
+        dataset_path=_DATASET_PREFIX / benchmark_dataset,
+        mistake_distance=_MISTAKE_DISTANCE,
+        oversample=_OVERSAMPLE,
+        augment_extra_samples=_AUGMENT_EXTRA_SAMPLES,
+        synonym_extra_samples=_SYNONYM_EXTRA_SAMPLES,
+        additional_synonyms=_ADDITIONAL_SYNONYMS)
 
     print("mera****************************")
     splits = dataset.get_splits()
@@ -673,9 +595,9 @@ def evaluate_dataset(benchmark_dataset):
             xS_train.append(elem_x)
 
     X_train_raw, y_train_raw = read_CSV_datafile(
-        filename=filename_train, intent_dict=intent_dict)
+        filepath=filepath_train, intent_dict=intent_dict)
     X_test_raw, y_test_raw = read_CSV_datafile(
-        filename=filename_test, intent_dict=intent_dict)
+        filepath=filepath_test, intent_dict=intent_dict)
     X_train_raw = xS_train
     y_train_raw = yS_train
 
@@ -685,15 +607,11 @@ def evaluate_dataset(benchmark_dataset):
 
     print("Size of Training Data: {}".format(len(X_train_raw)))
 
-    #
-    #
-    #
-
     X_train_raw = semhash_corpus(X_train_raw)
     X_test_raw = semhash_corpus(X_test_raw)
 
     X_train, y_train, X_test, y_test, feature_names = data_for_training(
-        vectorizer_name=vectorizer_name,
+        vectorizer_name=_VECTORIZER_NAME,
         X_train_raw=X_train_raw,
         X_test_raw=X_test_raw,
         y_train_raw=y_train_raw,
@@ -759,80 +677,32 @@ def evaluate_dataset(benchmark_dataset):
 
 def _get_target_names(benchmark_dataset):
     target_names = None
-    if benchmark_dataset == "Chatbot":
-        target_names = ["Departure Time", "Find Connection"]
-    elif benchmark_dataset == "AskUbuntu":
-        target_names = [
-            "Make Update", "Setup Printer", "Shutdown Computer",
-            "Software Recommendation", "None"
-        ]
-    elif benchmark_dataset == "WebApplication":
-        target_names = [
-            "Download Video", "Change Password", "None", "Export Data",
-            "Sync Accounts", "Filter Spam", "Find Alternative",
-            "Delete Account"
-        ]
-    elif benchmark_dataset == 'sherli':
-        with open("./datasets/KL/" + benchmark_dataset +
-                  "/intents.txt") as intent_file:
-            target_names = list(
-                x for x in intent_file.read().splitlines() if x)
-    assert target_names
+    with (_DATASET_PREFIX / benchmark_dataset / 'intents.txt').open() as intent_file:
+        target_names = list(
+            x for x in intent_file.read().splitlines() if x)
 
     return target_names
 
 
-def _get_intent_dict(benchmark_dataset, target_names):
-    if benchmark_dataset == "Chatbot":
-        intent_dict = {"DepartureTime": 0, "FindConnection": 1}
-    elif benchmark_dataset == "AskUbuntu":
-        intent_dict = {
-            "Make Update": 0,
-            "Setup Printer": 1,
-            "Shutdown Computer": 2,
-            "Software Recommendation": 3,
-            "None": 4
-        }
-    elif benchmark_dataset == "WebApplication":
-        intent_dict = {
-            "Download Video": 0,
-            "Change Password": 1,
-            "None": 2,
-            "Export Data": 3,
-            "Sync Accounts": 4,
-            "Filter Spam": 5,
-            "Find Alternative": 6,
-            "Delete Account": 7
-        }
-    elif benchmark_dataset == 'sherli':
-        intent_dict = dict(
-            (x, i) for x, i in zip(target_names, range(len(target_names))))
+def _get_intent_dict(target_names):
+    intent_dict = dict(
+        (x, i) for x, i in zip(target_names, range(len(target_names))))
 
     return intent_dict
 
 
 def train_classifiers(benchmark_dataset):
-    #Settings from the original paper
-    oversample = True
-    synonym_extra_samples = True
-    augment_extra_samples = False
-    additional_synonyms = 0
-    additional_augments = 0
-    mistake_distance = 2.1
-    vectorizer_name = 'tfidf'
-
     target_names = _get_target_names(benchmark_dataset)
 
-    intent_dict = _get_intent_dict(benchmark_dataset, target_names)
+    intent_dict = _get_intent_dict(target_names)
 
     dataset = MeraDataset(
-        dataset_path="./datasets/KL/" + benchmark_dataset + "/train.csv",
-        mistake_distance=mistake_distance,
-        oversample=oversample,
-        augment_extra_samples=augment_extra_samples,
-        synonym_extra_samples=synonym_extra_samples,
-        additional_synonyms=additional_synonyms,
-        additional_augments=additional_augments)
+        dataset_path=_DATASET_PREFIX / benchmark_dataset,
+        mistake_distance=_MISTAKE_DISTANCE,
+        oversample=_OVERSAMPLE,
+        augment_extra_samples=_AUGMENT_EXTRA_SAMPLES,
+        synonym_extra_samples=_SYNONYM_EXTRA_SAMPLES,
+        additional_synonyms=_ADDITIONAL_SYNONYMS)
 
     splits = dataset.get_splits()
     xS_train = []
@@ -851,7 +721,7 @@ def train_classifiers(benchmark_dataset):
 
     X_train_raw = semhash_corpus(X_train_raw)
     y_train = y_train_raw
-    vectorizer, _ = get_vectorizer(X_train_raw, vectorizer_name)
+    vectorizer, _ = get_vectorizer(X_train_raw, _VECTORIZER_NAME)
 
     X_train = vectorizer.transform(X_train_raw).toarray()
 
@@ -913,10 +783,8 @@ def predict_intent(utterance, classifiers, target_names, vectorizer):
                 print('{} probability: {}'.format(proba_name, prob))
 
 
-def _generate_sherli_datasets():
-    benchmark_dataset = 'sherli'
-    with open("./datasets/KL/" + benchmark_dataset +
-              "/orig_data.csv") as input_csv_file:
+def write_dataset_traintest(benchmark_dataset: str) -> None:
+    with (_DATASET_PREFIX / benchmark_dataset / 'orig_data.csv').open() as input_csv_file:
         orig_data = tuple(
             x.split('|') for x in input_csv_file.read().splitlines() if x)
     intent_to_examples = dict()
@@ -939,19 +807,22 @@ def _generate_sherli_datasets():
         while intent_to_examples[intent]:
             train_examples.append('{}\t{}'.format(
                 intent_to_examples[intent].pop(), intent))
-    with open("./datasets/KL/" + benchmark_dataset + "/train.csv",
-              'w') as output_csv_file:
+    with (_DATASET_PREFIX / benchmark_dataset / 'train.csv').open('w') as output_csv_file:
         output_csv_file.write('\n'.join(train_examples))
-    with open("./datasets/KL/" + benchmark_dataset + "/test.csv",
-              'w') as output_csv_file:
+    with (_DATASET_PREFIX / benchmark_dataset / 'test.csv').open('w') as output_csv_file:
         output_csv_file.write('\n'.join(test_examples))
 
 
-def main():
+def main() -> None:
     _STATE_INIT = 0
     _STATE_PREDICT = 1
     _STATE_EVALUATE = 2
     state = _STATE_INIT
+
+    # Program initialization
+    initialize()
+
+    # Main UI loop
     while True:
         try:
             if state == _STATE_INIT:
@@ -966,13 +837,11 @@ def main():
                     state = _STATE_INIT
             elif state == _STATE_EVALUATE:
                 benchmark_dataset = input('Dataset to evaluate: ')
-                if benchmark_dataset == 'sherli':
-                    _generate_sherli_datasets()
+                write_dataset_traintest(benchmark_dataset)
                 evaluate_dataset(benchmark_dataset)
             elif state == _STATE_PREDICT:
                 benchmark_dataset = input('Dataset to predict: ')
-                if benchmark_dataset == 'sherli':
-                    _generate_sherli_datasets()
+                write_dataset_traintest(benchmark_dataset)
                 classifiers, target_names, vectorizer = train_classifiers(
                     benchmark_dataset)
                 while True:
