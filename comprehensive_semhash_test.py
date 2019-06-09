@@ -75,9 +75,9 @@ import spacy
 # python -m spacy download en_core_web_lg
 # !python -m spacy download en_core_web_lg
 print('INFO: Loading spacy...')
-NLP = spacy.load('en_core_web_lg')
-NOUNS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('n')}
-VERBS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('v')}
+_NLP = spacy.load('en_core_web_lg')
+_NOUNS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('n')}
+_VERBS = {x.name().split('.', 1)[0] for x in wordnet.all_synsets('v')}
 print('INFO: Done')
 
 # for hyper_bench in ['AskUbuntu', 'Chatbot', 'WebApplication']:
@@ -102,8 +102,6 @@ def get_synonyms(word, number=3):
     return synonyms[:number]
     #return [token.text for token in most_similar(nlp.vocab[word])]
 
-
-print(get_synonyms("search", -1))
 
 #Hyperparameters
 # Choose from 'AskUbuntu', 'Chatbot' or 'WebApplication'
@@ -335,7 +333,6 @@ class MeraDataset:
         for _ in range(num_samples):
             sentences.append(self._get_augment_sentence(sentence))
         sentences = list(set(sentences))
-        # print("sentences", sentences)
         return sentences + [sentence]
 
     def _augment_split(self, X_train, y_train, num_samples=100):
@@ -351,9 +348,6 @@ class MeraDataset:
             for item in tmp_x:
                 Xs.append(item)
                 ys.append(y)
-            #sample = [[Xs.append(item), ys.append(y)] for item in tmp_x]
-            #print(X, y)
-            #print(self.augmentedFile+str(self.nSamples)+".csv")
 
         with open(
                 "./datasets/KL/Chatbot/train_augmented.csv", 'w',
@@ -361,15 +355,12 @@ class MeraDataset:
             fileWriter = csv.writer(csvFile, delimiter='\t')
             for i in range(0, len(Xs) - 1):
                 fileWriter.writerow([Xs[i] + '\t' + ys[i]])
-                # print(Xs[i], "\t", ys[i])
-                # print(Xs[i])
-            # fileWriter.writerows(Xs + ['\t'] + ys)
         return Xs, ys
 
     # Randomly replaces the nouns and verbs by synonyms
     def _synonym_word(self, word, cutoff=0.5):
         if random.uniform(0, 1.0) > cutoff and len(
-                get_synonyms(word)) > 0 and word in NOUNS and word in VERBS:
+                get_synonyms(word)) > 0 and word in _NOUNS and word in _VERBS:
             return random.choice(get_synonyms(word))
         return word
 
@@ -430,14 +421,7 @@ class MeraDataset:
             for _ in range(additional_synonyms):
                 Xs.append(self._get_synonym_sentence(X))
                 ys.append(y)
-            #sample = [[Xs.append(self._get_synonym_sentence(X)),
-            #           ys.append(y)] for item in range(additional_synonyms)]
-            #print(X, y)
 
-        #with open(filename_train+"augment", 'w', encoding='utf8') as csvFile:
-        #    fileWriter = csv.writer(csvFile, delimiter='\t')
-        #    for i in range(0, len(Xs)-1):
-        #        fileWriter.writerow([Xs[i] + '\t' + ys[i]])
         return Xs, ys
 
     def load(self):
@@ -447,9 +431,6 @@ class MeraDataset:
         with open(self.dataset_path) as csvfile:
             readCSV = csv.reader(csvfile, delimiter='	')
             all_rows = list(readCSV)
-            #             for i in all_rows:
-            #                 if i ==  28823:
-            #                     print(all_rows[i])
             X_test = [a[0] for a in all_rows]
             y_test = [a[1] for a in all_rows]
 
@@ -466,7 +447,7 @@ class MeraDataset:
 
             returns clean string sentence"""
         clean_tokens = []
-        doc = NLP.tokenizer(x)
+        doc = _NLP.tokenizer(x)
         for token in doc:
             if not token.is_stop:
                 clean_tokens.append(token.lemma_)
@@ -488,7 +469,6 @@ class MeraDataset:
         self.X_train, self.X_test = ([
             preprocess(sentence) for sentence in self.X_train
         ], [preprocess(sentence) for sentence in self.X_test])
-        print(self.X_train)
         if oversample:
             self.X_train, self.y_train = self._oversample_split(
                 self.X_train, self.y_train, synonym_extra_samples,
@@ -535,12 +515,6 @@ def read_CSV_datafile(filename, intent_dict):
                 print('WARN: Ignored unknown intent {}'.format(row[1]))
             else:
                 X.append(row[0])
-            #if benchmark_dataset == 'AskUbuntu':
-            #    y.append(intent_dict[row[1]])
-            #elif benchmark_dataset == 'Chatbot':
-            #    y.append(intent_dict[row[1]])
-            #else:
-            #    y.append(intent_dict[row[1]])
     return X, y
 
 
@@ -549,7 +523,7 @@ def read_CSV_datafile(filename, intent_dict):
 #    Returns a list of strings containing each token in `sentence`
 #    """
 #    tokens = []
-#    doc = NLP.tokenizer(doc)
+#    doc = _NLP.tokenizer(doc)
 #    for token in doc:
 #        tokens.append(token.text)
 #    return tokens
@@ -557,7 +531,7 @@ def read_CSV_datafile(filename, intent_dict):
 
 def preprocess(doc):
     clean_tokens = []
-    doc = NLP(doc)
+    doc = _NLP(doc)
     for token in doc:
         if not token.is_stop:
             clean_tokens.append(token.lemma_)
@@ -625,13 +599,6 @@ def benchmark(
         X_test,
         y_test,
         target_names,
-        #benchmark_dataset,
-        #oversample,
-        #synonym_extra_samples,
-        #augment_extra_samples,
-        #additional_synonyms,
-        #additional_augments,
-        #mistake_distance,
         print_report=True,
         feature_names=None,
         print_top10=False,
@@ -652,10 +619,7 @@ def benchmark(
     score = metrics.accuracy_score(y_test, pred)
     f1_score = metrics.f1_score(y_test, pred, average='weighted')
 
-    #bad_pred = X_test[pred != y_test]
-
     print("accuracy:   %0.3f" % score)
-    #print("Accuracy: %0.3f (+/- %0.3f)" % (score.mean(), score.std() * 2))
 
     if hasattr(clf, 'coef_'):
         print("dimensionality: %d" % clf.coef_.shape[1])
@@ -685,23 +649,6 @@ def benchmark(
     if print_cm:
         print("confusion matrix:")
         print(metrics.confusion_matrix(y_test, pred))
-
-    #with open("./" + RESULT_FILE, 'a', encoding='utf8') as csvFile:
-    #    fileWriter = csv.writer(csvFile, delimiter='\t')
-    #    fileWriter.writerow([
-    #        benchmark_dataset,
-    #        str(clf),
-    #        str(oversample),
-    #        str(synonym_extra_samples),
-    #        str(augment_extra_samples),
-    #        str(additional_synonyms),
-    #        str(additional_augments),
-    #        str(mistake_distance),
-    #        str(score),
-    #        str(f1_score),
-    #        str(train_time),
-    #        str(test_time)
-    #    ])
 
     print()
     clf_descr = str(clf).split('(')[0]
@@ -768,7 +715,6 @@ def evaluate_dataset(benchmark_dataset):
     filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
     filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
 
-    print("./datasets/KL/" + benchmark_dataset + "/train.csv")
     #t0 = time()
     dataset = MeraDataset(
         dataset_path="./datasets/KL/" + benchmark_dataset + "/train.csv",
@@ -792,17 +738,11 @@ def evaluate_dataset(benchmark_dataset):
             print('WARN: Ignored unknown intent "{}"'.format(elem_y))
         else:
             xS_train.append(elem_x)
-    #preprocess_time = time() - t0
-    print(xS_train[:5])
-    print(len(xS_train))
 
     X_train_raw, y_train_raw = read_CSV_datafile(
         filename=filename_train, intent_dict=intent_dict)
     X_test_raw, y_test_raw = read_CSV_datafile(
         filename=filename_test, intent_dict=intent_dict)
-    print(y_train_raw[:5])
-    print(X_test_raw[:5])
-    print(y_test_raw[:5])
     X_train_raw = xS_train
     y_train_raw = yS_train
 
@@ -816,44 +756,15 @@ def evaluate_dataset(benchmark_dataset):
     #
     #
 
-    #t0 = time()
     X_train_raw = semhash_corpus(X_train_raw)
     X_test_raw = semhash_corpus(X_test_raw)
-    #semhash_time = time() - t0
 
-    print(X_train_raw[:5])
-    print(y_train_raw[:5])
-    print()
-    print(X_test_raw[:5])
-    print(y_test_raw[:5])
-
-    #t0 = time()
     X_train, y_train, X_test, y_test, feature_names = data_for_training(
         vectorizer_name=vectorizer_name,
         X_train_raw=X_train_raw,
         X_test_raw=X_test_raw,
         y_train_raw=y_train_raw,
         y_test_raw=y_test_raw)
-    #vectorize_time = time() - t0
-
-    #with open("./" + METADATA_FILE, 'a', encoding='utf8') as csvFile:
-    #    fileWriter = csv.writer(csvFile, delimiter='\t')
-    #    fileWriter.writerow([
-    #        benchmark_dataset,
-    #        str(oversample),
-    #        str(synonym_extra_samples),
-    #        str(augment_extra_samples),
-    #        str(additional_synonyms),
-    #        str(additional_augments),
-    #        str(mistake_distance),
-    #        str(preprocess_time),
-    #        str(semhash_time),
-    #        str(vectorize_time)
-    #    ])
-
-    print(X_train[0].tolist())
-    print(y_train[0])
-    print(feature_names)
 
     for _ in enumerate(range(NUMBER_OF_RUNS_PER_SETTING)):
         i_s = 0
@@ -861,7 +772,6 @@ def evaluate_dataset(benchmark_dataset):
         print("Train Size: {}\nTest Size: {}".format(X_train.shape[0],
                                                      X_test.shape[0]))
         results = []
-        #alphas = np.array([1,0.1,0.01,0.001,0.0001,0])
         parameters_mlp = {
             'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
         }
@@ -932,31 +842,8 @@ def evaluate_dataset(benchmark_dataset):
                 X_test=X_test,
                 y_test=y_test,
                 target_names=target_names,
-                #benchmark_dataset=benchmark_dataset,
-                #oversample=oversample,
-                #synonym_extra_samples=synonym_extra_samples,
-                #augment_extra_samples=augment_extra_samples,
-                #additional_synonyms=additional_synonyms,
-                #additional_augments=additional_augments,
-                #mistake_distance=mistake_distance,
                 feature_names=feature_names)
             results.append(result)
-
-        # print('parameters')
-        # print(clf.grid_scores_[0])
-        #print('CV Validation Score')
-        # print(clf.grid_scores_[0].cv_validation_scores)
-        # print('Mean Validation Score')
-        # print(clf.grid_scores_[0].mean_validation_score)
-        # grid_mean_scores = [result.mean_validation_score for result in clf.grid_scores_]
-        # print(grid_mean_scores)
-        # plt.plot(k_range, grid_mean_scores)
-        # plt.xlabel('Value of K for KNN')
-        # plt.ylabel('Cross-Validated Accuracy')
-
-        #plot_results(results)
-
-    print(len(X_train))
 
 
 def _get_target_names(benchmark_dataset):
@@ -1015,7 +902,6 @@ def _get_intent_dict(benchmark_dataset, target_names):
 
 def train_classifiers(benchmark_dataset):
     #Settings from the original paper
-    #benchmark_dataset = 'AskUbuntu'
     oversample = True
     synonym_extra_samples = True
     augment_extra_samples = False
@@ -1050,32 +936,15 @@ def train_classifiers(benchmark_dataset):
             # Ignore intents not defined in intent list
             print('WARN: Ignored unknown intent "{}"'.format(elem))
 
-    #filename_train = "datasets/KL/" + benchmark_dataset + "/train.csv"
-    #filename_test = "datasets/KL/" + benchmark_dataset + "/test.csv"
-    #X_train_raw, y_train_raw = read_CSV_datafile(
-    #    filename=filename_train, intent_dict=intent_dict)
-    #X_test_raw, y_test_raw = read_CSV_datafile(
-    #    filename=filename_test, intent_dict=intent_dict)
-    #X_test_raw = [utterance]
     X_train_raw = xS_train
     y_train_raw = yS_train
 
     X_train_raw = semhash_corpus(X_train_raw)
-    #X_test_raw = semhash_corpus(X_test_raw)
-
-    #X_train, y_train, X_test, y_test, feature_names = data_for_training(
-    #    vectorizer_name=vectorizer_name,
-    #    X_train_raw=X_train_raw,
-    #    X_test_raw=X_test_raw,
-    #    y_train_raw=y_train_raw,
-    #    y_test_raw=y_test_raw)
     y_train = y_train_raw
     vectorizer, _ = get_vectorizer(X_train_raw, vectorizer_name)
 
     X_train = vectorizer.transform(X_train_raw).toarray()
-    #X_test = vectorizer.transform(X_test_raw).toarray()
 
-    #results = []
     parameters_mlp = {
         'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
     }
@@ -1136,15 +1005,6 @@ def train_classifiers(benchmark_dataset):
         print('=' * 80)
         print(name)
         clf.fit(X_train, y_train)
-        #result = benchmark(
-        #    clf=clf,
-        #    X_train=X_train,
-        #    y_train=y_train,
-        #    X_test=X_test,
-        #    y_test=y_test,
-        #    target_names=target_names,
-        #    feature_names=feature_names)
-        #results.append(result)
     return classifiers, target_names, vectorizer
 
 
@@ -1169,7 +1029,6 @@ def _generate_sherli_datasets():
     benchmark_dataset = 'sherli'
     with open("./datasets/KL/" + benchmark_dataset +
               "/orig_data.csv") as input_csv_file:
-        #content = input_csv_file.read().replace('|', '\t').replace('\n\n', '\n')
         orig_data = tuple(
             x.split('|') for x in input_csv_file.read().splitlines() if x)
     intent_to_examples = dict()
