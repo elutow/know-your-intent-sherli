@@ -1,46 +1,268 @@
-i would like to hear about google|search
-please tell me about javascript|search
-news about water and bottles|search
-i want news about web browsers excluding movies|search
-could you search about blankets excluding cloth including sodium|search
-
+could you elaborate on this article please|elaborate
+could you elaborate on this article|elaborate
+could you elaborate|elaborate
+could you say more about this article please|elaborate
+could you say more about this article|elaborate
+could you say more please|elaborate
+could you say more|elaborate
+could you tell me more about this article please|elaborate
+could you tell me more about this article|elaborate
+could you tell me more please|elaborate
+could you tell me more|elaborate
+elaborate on this article please|elaborate
+elaborate on this article|elaborate
+elaborate please|elaborate
+elaborate|elaborate
+i want to hear more about this article please|elaborate
 i want to hear more about this article|elaborate
-more details|elaborate
-more details please|elaborate
+i want to hear more please|elaborate
 i want to hear more|elaborate
-tell me about what you just found|elaborate
-tell me more|elaborate
-say more please|elaborate
+i want you to elaborate please|elaborate
+i want you to elaborate|elaborate
+more details about the article please|elaborate
+more details about the article|elaborate
+more details please|elaborate
+okay elaborate on this article please|elaborate
+okay elaborate on this article|elaborate
+okay elaborate please|elaborate
+okay elaborate|elaborate
+okay more details please|elaborate
+okay say more about the article please|elaborate
+okay say more about the article|elaborate
+okay say more please|elaborate
+okay say more|elaborate
+please elaborate|elaborate
+please say more about the article|elaborate
 please say more|elaborate
+please tell me more about the article|elaborate
 please tell me more|elaborate
-please say more|elaborate
-say more|elaborate
-i want more|elaborate
+would you mind elaborating please|elaborate
+would you mind elaborating|elaborate
+would you mind saying more|elaborate
+would you mind telling me more about the article|elaborate
 
 what am i searching|echo_query
+what did i search|echo_query
 what did you search|echo_query
 what did you look up|echo_query
 say what was searched|echo_query
 repeat search query|echo_query
 tell me search query|echo_query
+could you tell me what i searched|echo_query
+could you tell me what you searched|echo_query
+please tell me what was searched|echo_query
 
 sure|yes
 yes please|yes
-sure let's do it|yes
 sure|yes
 okay|yes
 yeah|yes
-yeah let's do it|yes
-please do it|yes
-please lets do it|yes
 
 no thanks|no
 no|no
 nope|no
 nah|no
 please no|no
-don't do it|no
 no no no|no
-please don't do it|no
 no thank you|no
-thank you but no|no
+
+could you find news for spoons and forks|search
+could you locate news about sponsors and patreon|search
+could you search about blankets excluding cloth including sodium|search
+could you search for cereal and milk and human health|search
+i want news about web browsers excluding movies|search
+i want news discussing self driving cars excluding politics|search
+i want news talking about wallet weight|search
+i want news with youtube and google and advertising|search
+i would like to find news about tesla|search
+i would like to hear about charging stations and cars|search
+i would like to hear about google|search
+i would like to search for smartphones excluding arm|search
+locate news about chargers and heat dissipation|search
+find news about vertical file and exocrine gland|search
+search news for plasmodium|search
+tell me about kentucky black bass|search
+lookup daiquiri opium poppy|search
+search for railway junction and sodium pyrophosphate|search
+news about water and bottles|search
+news containing neuroscience and electrodes|search
+news regarding plastic bags|search
+news related to hill valley|search
+please find articles about fungus and trees|search
+please find articles about html|search
+please locate news about touchpads and dogs|search
+please locate news about volatile managing editor|search
+please search about tacos excluding mexican food including tortillas|search
+please search for articles about water dams|search
+please search for laptops excluding intel|search
+please search news for black holes excluding science fiction|search
+please tell me about javascript|search
+
+could you find news for musteline mammal american crayfish and coolant system|search
+could you locate news about winter currant and adalia and genus arnica penicillamine wire|search
+could you search about left unobtrusiveness warble excluding mongolism and tropical prawn robin's plantain grey snapper and fruitfulness kaolinite and contaminant gilman british crown|search
+could you search for ghanian monetary unit fortran program cattle egret and omega eclat loser and communication teetotaler|search
+i want news about rush aster caber dover's powder and firenze micropaleontology bufflehead and depositor excluding greengage mesenteric artery victor emanuel ii and granola bar indian coral tree pyrograph including note payable chordate chrysoberyl and prose kitchen garden schizophrenic|search
+i want news discussing provost marshal and support level photolithograph six and peneplain|search
+i want news talking about religious ceremony diagnostic procedure|search
+i want news with job lot and extrovert lobate foot and hauler letter bond and tap dancer weeknight hallucinogen including king crab antwerpen scripps and meterstick piranha and rental income|search
+i would like to find news about salpinx garden cress|search
+i would like to hear about titanic acid and macron|search
+i would like to search for cassiopeia monastic habit alliterator and dwarf juniper thiobacteriaceae and genus euglena attendance check and hypoxidaceae shih-tzu|search
+locate news about profusion bahamian dollar and classroom and nidulariales bibliotist|search
+find news about besieger and glyph sweetbread and zygomycota|search
+search news for moth lankiness|search
+tell me about right of search|search
+lookup matrix and chocolate mousse pentail shoulder bag|search
+search for cantharellus tropaeolum uncommunicativeness and hasty defense creationism and sweetmeat status quo wernicke's area and valley pocket gopher outrider jeffersonian including drupe teaching fellow and moisture and wounded and sixtus iv amphineura erethism excluding madrasa desiccant and ganoid and doodia caviidae packrat and third baseman sheep plant|search
+news about semicircle pennyworth cantaloup and lady chapel seventeen-year locust and ebbtide monosemy including rock candy tocharian|search
+news containing base runner and degree of a term|search
+news regarding guinean franc excluding notonecta peruvian monetary unit and etruscan|search
+news related to physics epanodos|search
+please find articles about urobilinogen and snick and bicycle chain mantel and perambulation|search
+please locate news about overthrow|search
+please search about saunter begum friendly fire|search
+please search for articles about spinnaker and apocynaceae sego lily complementary medicine and truncheon excluding optician cloning and camphor tree and pouter pigeon|search
+please search for high-five and jupiter's beard including kentucky wonder dna fingerprint and jazz festival acromphalus and wet dream and hyperacusis suez canal desmanthus excluding lotus position alibi and meekness and guy fawkes day bull thistle and genus gloxinia|search
+please search news for kainite gecko and tursiops and breathing device wynnea and discrimination siberian elm lepidobotryaceae|search
+please tell me about gondwanaland elephantiasis scroti and makeover genus cattleya lambkin and royal poinciana varicosis|search
+could you find news for actiniaria|search
+could you locate news about santa cruz cypress and bracteole scandal limitation|search
+could you search about campanulaceae badminton court john the baptist and sand dropseed marrano|search
+could you search for physalis dextroamphetamine sulphate cortex and cypress sedge engineer moon trefoil and woodcraft escheat and windward san joaquin valley including coturnix caviar heroic poetry and gentianopsid procera|search
+i want news about launching genus chaetodon meed and back room evil spirit boccaccio and amyloid plaque dune buggy including sri lanka dimenhydrinate|search
+i want news discussing po hybridoma alexandrian and valley water jug including malignant hypertension penicillin and oil beetle bhadon and self-love dolichocephaly cress and agassiz west african excluding bantamweight|search
+i want news talking about black tie abscess underpass and mutchkin vangueria and jordanella mauritania choropleth map|search
+i want news with girru genus scorzonera excluding blind side canberra flag day and mescaline rhizoctinia and master class and farmplace medullary sheath hematologist including annunciation hop language area and gregorian calendar month|search
+i would like to find news about purslane speedwell negotiatress seltzer|search
+i would like to hear about wrester and tampion diastole|search
+i would like to search for golf glove breach of trust with fraudulent intent and zoysia turtler|search
+locate news about payroll gehrig and landfall and estate of the realm body lotion and teresa|search
+find news about hyperparathyroidism excluding lactosuria wiesbaden including scud and travel bargain sea bass|search
+search news for order myxobacteria nablus and popular front move mood and great-nephew and protestant church bread-bin nonvascular organism|search
+tell me about el alamein and ameba and sea aster|search
+lookup forlornness including dooryard medical profession premature baby and fallout and lipreading tirich mir stakeout and pinworm arcella galen|search
+search for wiper rape conviction errand and ratbite fever bacterium matrix operation and grand mal second mortgage excluding quassia differential gear burl and shirting genus monstera and krebs accessory during the fact bornite and undertone including lira and exaeretodon foxtail oregano and gold digger and thermotropism|search
+news about diastole|search
+news containing kuwait burnett formatted capacity and billfish|search
+news regarding genus aquilegia|search
+news related to tax income including gobbler and hormone replacement therapy and bluebird|search
+please find articles about excavation and greenville and distinction hertfordshire|search
+please locate news about first period gross national product snuff-color|search
+please search about fall-blooming hydrangea and linear operator|search
+please search for articles about kitchener eye-lotion dietary supplement and homo habilis|search
+please search for vouvray dominic and sentimentality and manganic acid|search
+please search news for trestle table and cochineal insect and roccus speciation excluding immunoglobulin m entandrophragma ice-cream cone including cat thyme tailless tenrec reimposition and skinnerian mussolini yerba buena|search
+please tell me about hall of residence bread sauce and arterial pressure bermuda cedar|search
+could you find news for nepal|search
+could you locate news about boulevardier nota bene and jack-o-lantern fungus dysuria|search
+could you search about quaker and conning tower and decortication fuel-air explosive butterfish and international relations and security network tichodroma excluding briard aortic valve sprinkler system|search
+could you search for spirea density and paintbrush mycology matteuccia excluding dahlia stock issue douglas and caller id|search
+i want news about essen felt fungus and infelicity|search
+i want news discussing hemodialysis synentognathi veloute and snowman madeira respite|search
+i want news talking about rubber public servant cercopidae and optical disk spyeria|search
+i want news with inverted pleat plain turkey black ice and hypopachus cross-link terza rima and balm of gilead internal jugular vein|search
+i would like to find news about arceuthobium cordite disapprobation|search
+i would like to hear about sadomasochism credence caustic and morpheme and atypicality equity and movable feast polyester fiber chondrite|search
+i would like to search for algebraist dance lesson and tourette's syndrome and streptopelia turtur including transfusion walkman and aa regalia|search
+locate news about wrestling match adjustable wrench dalmatian and curio banana peel giantism|search
+find news about honey mushroom leg exercise court excluding population commission southern flying squirrel silverberry and fletcher saccharomycetaceae british crown and indigo scheduled maintenance jai alai and secretase federal national mortgage association hobbyhorse|search
+search news for saccharum interposition the shits and fibrous dysplasia of bone green and amianthum resulting trust tyndall effect|search
+tell me about sepsis white crappie salient and tepidness ecologist time-switch|search
+lookup united states public health service couscous tilter and fipple destruction fire coryphaena hippurus and myoclonus rocky mountain bee plant|search
+search for genus lemur|search
+news about certhiidae handline trophy and one-upmanship meagerness including stream of consciousness vital statistics excluding epistle of james|search
+news containing dereliction trouser cuff bdellium and genus calanthe and settlor liquid body substance and redhorse kidney opuntiales|search
+news regarding dogtrot amperage obsessive-compulsive disorder|search
+news related to balto-slavic and quadruped cretaceous and developmental learning mongoloid and security service excluding stepchild wave angle and paper toweling epikeratophakia|search
+please find articles about braxton-hicks contraction tuning and prescription xyris and foul-weather gear|search
+please locate news about mullus and cytogenetics|search
+please search about anacanthini pentathlete|search
+please search for articles about poetry|search
+please search for bottler power shovel desperate measure including wilder dagestani gall and quaver and depletion java excluding food bank and antapex|search
+please search news for sailor cap holcus dynast and transsexual tapir|search
+please tell me about people gulf of aden and tail laser-assisted in situ keratomileusis belarusian monetary unit and genus pistia afflatus twenty-eight including olivier excluding skylight ethyl encephalocele and tecumseh and rampant arch and eleocharis markup pitching change|search
+could you find news for david|search
+could you locate news about earthwork strudel pedestal table and melosa and weaver and fayetteville singsong mycrosporidia|search
+could you search about welcher gendarme|search
+could you search for soricidae and there right to vote|search
+i want news about occipitomastoid suture hoper excluding genus dillenia capybara|search
+i want news discussing product research and issus blood vessel miller including american foxhound frame of reference isolationism and equation and department of defense|search
+i want news talking about chromatic scale and growler contemporaneity and seborrhea winnings sour dock and fishplate bitter chocolate|search
+i want news with proprietorship illuminance and characeae psychosexual development and round trip poster boy|search
+i would like to find news about codification and devolution|search
+i would like to hear about platt national park jeffersonian and gluteus medius taxidermy spikemoss and maneuver california gyrostabilizer and offenbach|search
+i would like to search for mist vanua levu and ulanova falco and inti betrayal atherurus and tooth fungus germ portcullis|search
+locate news about plumb level and muleteer approximation|search
+find news about coaching and pillow acrylic and arsine gordon setter blastocladia|search
+search news for stratum germinativum and test drive and caladenia crick wedgwood and thalia|search
+tell me about glad hand excluding robin hood amphipoda and antilocapra primary dysmenorrhea annunciation and silicle necromancy couturier and corps de ballet avestan hellebore|search
+lookup antiseptic closeup humor and taxidea east side entomion including costmary water filter and detective story inquisitor ryukyu islands|search
+search for motor memory and dehydration including black race and hand autosome and sarsaparilla cotton strain and zapata reorientation|search
+news about thalassemia volt and narthex businesswoman|search
+news containing temperate zone greeneye reuben and tianjin detective cardiff and superoxide dismutase loser excluding wreath puck monophysite and book bag including farkleberry and jump|search
+news regarding buffalo fish west virginia and truffle safety arch and hieratic|search
+news related to pet shop|search
+please find articles about telemetry maxillary sinus local oscillator and aplite relaxation time and mongo and bung caudine forks belem|search
+please locate news about bronco silver jenny and dimenhydrinate balboa|search
+please search about simplicity wild pitch rock hyrax and grevillea pine constitutionalism|search
+please search for articles about hylophylax and loranthus|search
+please search for bay rum and panamanian musket ball camus and motor aphasia fieri facias and menziesia amoxicillin including scene-stealer occipital bone|search
+please search news for lucubration plant hopper solar gravity and devourer|search
+please tell me about jury footbath lead acetate and food bank unpermissiveness bombycidae and synchronous operation and mechanical phenomenon staleness windburn|search
+could you find news for weakfish lipase and acclaim giving up personal relation and mugger rattrap|search
+could you locate news about canadian security intelligence service clarksburg and remark lake st red-lead putty and myotonic muscular dystrophy spinal canal crosse and daemon|search
+could you search about eucalyptus oil oarsman and choirmaster flower gardening fifties and trinidadian chitterlings dickey|search
+could you search for consultation ague and smegma kurrajong|search
+i want news about maggot mixed farming impairment excluding live axle and purple silkweed|search
+i want news discussing golden handshake american mountain ash crow pheasant and latinist audiometry|search
+i want news talking about tancred genus monarda and tidal wave|search
+i want news with blood dyscrasia radio news and olive tree carex|search
+i would like to find news about karen himalayish genus vanilla and virginia easter card succussion and norgestrel rhinorrhea artificiality excluding irritable bowel syndrome angioedema paleoanthropology and glassblower including chebab diarchy and tune and mendelism and account|search
+i would like to hear about superior cerebellar artery and markov process and fifth columnist payroll and chorale secateurs|search
+i would like to search for unnoticeableness and living space rain dance and hydrophyllum bleacher baseball including prelacy firebreak love knot excluding grand guignol cognitive semantics dog tag and call forwarding dimer and cogitation|search
+locate news about electromyograph pierre laporte bridge and aedes and navratilova isatis|search
+find news about articulatory system abundance strip mining including trading and fairbanks stepchild and collinsia fructification noblesse|search
+search news for need old man of the mountain cold|search
+tell me about genus lomatia dulles argali excluding irresponsibility nose flute and uncheerfulness neencephalon and surrebutter overshoe grand teton national park|search
+lookup detective agency racing pickled herring|search
+search for quota and hydrocracking and rachis petit four and typhlopidae spawner tipu|search
+news about champlain genus noctiluca including broomstick spin the bottle skin disease and griseofulvin commencement day flatbed press and rem adelie land hanging fly and united states constitution excluding missouri goldenrod produce and hygrophoraceae caisson|search
+news containing open circuit pseudohermaphroditism and joining endomorph and ungradable opposition|search
+news regarding afterdeck and intensifier excluding water meter spark transmitter|search
+news related to bunsen burner stickweed work-in and wood vise riser and tripoli akinetic epilepsy apnea and reproductive organ dika bread|search
+please find articles about witch elm swamp gum inertness and plasmin and membership card and wreath random sampling|search
+please locate news about drug user zebra finch tirana and prowler rumor|search
+please search about endurance gelignite|search
+please search for articles about spot-welder chinese parasol tree bran flake excluding oleic acid silk gland and sailing warship crowbar and abracadabra steering committee greco-roman deity and genus tortrix wild apple heparin including commencement day sherlock holmes bad check and swale blackcock and splice and estate musculophrenic vein|search
+please search for umbrella bird crotalidae fingerprint expert and selkirk mountains presage excluding bust one-half spanish grunt including tandy bulimic glassmaker|search
+please search news for five sanskrit hydrangea and koinonia amnesia and rose of jericho and kingdom interconnection|search
+please tell me about hung jury seward's folly and sweet melon and azure aster including poetics russian dandelion and dicrostonyx druid|search
+could you find news for earshot and spark arrester spiegeleisen ixodes scapularis and counterculture submissiveness and arcadic one-ninth excluding kyyiv vortex vein including pablum lilith and sensory neuron and pharyngeal tonsil bechtel crab sticktight|search
+could you locate news about palomino brachium and heating and cob submission train of thought and soldierfish pulsar|search
+could you search about ophthalmoplegia priory billy|search
+could you search for ecology and exacta cotton candy experimental method and ticket agent sunnite msasa including kinesiology bassine frozen food and paducah imitation shield|search
+i want news about briard flesh fly difference and composite material and medical institution and suidae|search
+i want news discussing photochemistry and electric bill ticktock and military march|search
+i want news talking about puff paste imaginary place spindlelegs|search
+i want news with endodontics and alcoholic dementia becquerel and brassard hairdo and temporariness chase|search
+i would like to find news about anglo-saxon active immunity and random-access memory orthogonality adsorbate and ming tree defensiveness excluding hyposmia and vanity and common vetchling parsimony herpes simplex and triquetral wood tick including basket toothbrush tree and ops organon|search
+i would like to hear about dinner dress equisetaceae and peace process water chinquapin|search
+i would like to search for sightreader and beria and takeaway red underwing and endothermic reaction endogamy mainstream including humperdinck luscinia knighthood and picus and gallaudet and vase excluding orzo demographic|search
+locate news about salt pork excluding shortfin mako propanolol and skew arch ester custard pie including haemoproteidae federal bureau of prisons|search
+find news about avulsion and squawbush onyx|search
+search news for american pasqueflower chemical irritant and birthday weightlift and adzuki bean rioter augustine and histaminase lilith cost cutting including polymyxin and lacteal and solanopteris|search
+tell me about coonskin cap platform bed and corner pocket and judgment|search
+lookup pyelography toolmaker|search
+search for flux density neonate nearside|search
+news about christian science and trap-door spider corporatist connective tissue|search
+news containing cell-mediated immune response and genus draba cedar of lebanon stinking goosefoot and moroccan retrospection and nova scotia lox submersible|search
+news regarding camphor tree and barn swallow excluding brittle star straightaway obituary and sarcophilus and chamber orchestra and irresoluteness small magellanic cloud|search
+news related to hello and martinmas and ocher cesium 137|search
+please find articles about torsion and harasser headdress and mountain laurel vintner clipping and lycopus including yugoslavian monetary unit staple gun wall pepper and atherinopsis and tisiphone blue fox landmass|search
+please locate news about spheniscus and galingale paintbrush|search
+please search about tank destroyer and brachycephaly|search
+please search for articles about myrtle beech silent butler and table and weakener downing chinese goose|search
+please search for dovecote quick march grillroom|search
+please search news for cotton rose refrigerator and guess eelam summation and trust deed mycoplasmataceae|search
+please tell me about hunted person and rhythm and blues party and sedative-hypnotic and lavender ii maccabees including catalase and lycaeon and stodge hesse and manda|search

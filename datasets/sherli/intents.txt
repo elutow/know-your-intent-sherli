@@ -1,5 +1,3 @@
 search
 elaborate
 echo_query
-yes
-no
