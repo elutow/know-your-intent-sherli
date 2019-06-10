@@ -1,10 +1,13 @@
 from collections import OrderedDict
 from pathlib import Path
 from time import time
+from typing import List, Optional, Tuple, Any
 import csv
 import math
 import random
+import zlib
 
+import joblib
 import numpy as np
 import spacy
 from nltk.corpus import wordnet
@@ -74,8 +77,12 @@ _VECTORIZER_NAME = 'tfidf'
 
 NUMBER_OF_RUNS_PER_SETTING = 1
 
+VECTORIZER_FILENAME = 'vectorizer.joblib'
+CLASSIFIER_FILENAME_SUFFIX = '_classifier.joblib'
+
 # Runtime utilities
 _DATASET_PREFIX = Path(__file__).resolve().parent / 'datasets'
+_MODELS_PREFIX = Path(__file__).resolve().parent / 'models'
 _NLP = None
 _NOUNS = None
 _VERBS = None
@@ -83,7 +90,7 @@ _INITIALIZED = False
 
 
 def initialize():
-    global _NLP, _NOUNS, _VERBS, _INITIALIZED #pylint: disable=global-statement
+    global _NLP, _NOUNS, _VERBS, _INITIALIZED  #pylint: disable=global-statement
     if _INITIALIZED:
         return
     print('INFO: Loading spacy and wordnet...')
@@ -98,6 +105,7 @@ def initialize():
     _INITIALIZED = True
     print('INFO: Done')
 
+
 def get_synonyms(word, number=3):
     synonyms = []
     for syn in wordnet.synsets(word):
@@ -108,7 +116,7 @@ def get_synonyms(word, number=3):
 
 
 #********* Data augmentation part **************
-class MeraDataset:
+class MeraDataset:  #pylint: disable=too-many-instance-attributes
     """ Class to find typos based on the keyboard distribution, for QWERTY style keyboards
 
         It's the actual test set as defined in the paper that we comparing against."""
@@ -299,7 +307,7 @@ class MeraDataset:
     @staticmethod
     def _synonym_word(word, cutoff=0.5):
         assert _INITIALIZED
-        if random.uniform(0, 1.0) > cutoff and len( #pylint: disable=len-as-condition
+        if random.uniform(0, 1.0) > cutoff and len(  #pylint: disable=len-as-condition
                 get_synonyms(word)) > 0 and word in _NOUNS and word in _VERBS:
             return random.choice(get_synonyms(word))
         return word
@@ -418,6 +426,7 @@ class MeraDataset:
 def read_CSV_datafile(filepath, intent_dict):
     X = []
     y = []
+    unknown_intents = set()
     with filepath.open() as csvfile:
         reader = csv.reader(csvfile, delimiter='\t')
         for row in reader:
@@ -425,7 +434,9 @@ def read_CSV_datafile(filepath, intent_dict):
                 y.append(intent_dict[row[1]])
             except KeyError:
                 # Ignore unknown intent
-                print('WARN: Ignored unknown intent {}'.format(row[1]))
+                if row[1] not in unknown_intents:
+                    unknown_intents.add(row[1])
+                    print('WARN: Ignored unknown intent {}'.format(row[1]))
             else:
                 X.append(row[0])
     return X, y
@@ -492,18 +503,56 @@ def trim(s):
     return s if len(s) <= 80 else s[:77] + "..."
 
 
+def _new_classifiers() -> List[Tuple[Any, str]]:
+    parameters_mlp = {
+        'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
+    }
+    parameters_RF = {"n_estimators": [50, 60, 70], "min_samples_leaf": [1, 11]}
+    k_range = list(range(3, 7))
+    parameters_knn = {'n_neighbors': k_range}
+    knn = KNeighborsClassifier(n_neighbors=5)
+    return [
+        (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
+        (GridSearchCV(MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
+         "gridsearchmlp"),
+        (GridSearchCV(
+            RandomForestClassifier(n_estimators=10), parameters_RF, cv=5),
+         "gridsearchRF"),
+        (MultinomialNB(alpha=.01), 'Sparse_Naive_Bayes_MultinomialNB'),
+        (BernoulliNB(alpha=.01), 'Sparse_Naive_Bayes_BernoulliNB'),
+        # The smaller C, the stronger the regularization.
+        # The more regularization, the more sparsity.
+        (LogisticRegression(
+            C=1.0,
+            class_weight=None,
+            dual=False,
+            fit_intercept=True,
+            intercept_scaling=1,
+            max_iter=100,
+            multi_class='ovr',
+            n_jobs=1,
+            penalty='l2',
+            random_state=None,
+            solver='liblinear',
+            tol=0.0001,
+            verbose=0,
+            warm_start=False), 'LogisticRegression'),
+    ]
+
+
 # #############################################################################
 # Benchmark classifiers
-def benchmark(clf,
-              X_train,
-              y_train,
-              X_test,
-              y_test,
-              target_names,
-              print_report=True,
-              feature_names=None,
-              print_top10=False,
-              print_cm=True):
+def benchmark(  #pylint: disable=too-many-locals
+        clf,
+        X_train,
+        y_train,
+        X_test,
+        y_test,
+        target_names,
+        print_report=True,
+        feature_names=None,
+        print_top10=False,
+        print_cm=True):
     print('_' * 80)
     print("Training: ")
     print(clf)
@@ -563,7 +612,7 @@ def data_for_training(vectorizer_name, X_train_raw, X_test_raw, y_train_raw,
     return X_train, y_train_raw, X_test, y_test_raw, feature_names
 
 
-def evaluate_dataset(benchmark_dataset):
+def evaluate_dataset(benchmark_dataset):  #pylint: disable=too-many-locals
     target_names = _get_target_names(benchmark_dataset)
 
     intent_dict = _get_intent_dict(target_names)
@@ -585,12 +634,15 @@ def evaluate_dataset(benchmark_dataset):
     xS_train = []
     yS_train = []
 
+    unknown_intents = set()
     for elem_x, elem_y in zip(splits[0]["train"]['X'],
                               splits[0]['train']['y']):
         try:
             yS_train.append(intent_dict[elem_y])
         except KeyError:
-            print('WARN: Ignored unknown intent "{}"'.format(elem_y))
+            if elem_y not in unknown_intents:
+                unknown_intents.add(elem_y)
+                print('WARN: Ignored unknown intent "{}"'.format(elem_y))
         else:
             xS_train.append(elem_x)
 
@@ -623,44 +675,7 @@ def evaluate_dataset(benchmark_dataset):
         print("Train Size: {}\nTest Size: {}".format(X_train.shape[0],
                                                      X_test.shape[0]))
         results = []
-        parameters_mlp = {
-            'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
-        }
-        parameters_RF = {
-            "n_estimators": [50, 60, 70],
-            "min_samples_leaf": [1, 11]
-        }
-        k_range = list(range(3, 7))
-        parameters_knn = {'n_neighbors': k_range}
-        knn = KNeighborsClassifier(n_neighbors=5)
-        for clf, name in [
-            (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
-            (GridSearchCV(
-                MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
-             "gridsearchmlp"),
-            (GridSearchCV(
-                RandomForestClassifier(n_estimators=10), parameters_RF, cv=5),
-             "gridsearchRF"),
-            (MultinomialNB(alpha=.01), 'Sparse Naive Bayes (MultinomialNB)'),
-            (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
-                # The smaller C, the stronger the regularization.
-                # The more regularization, the more sparsity.
-            (LogisticRegression(
-                C=1.0,
-                class_weight=None,
-                dual=False,
-                fit_intercept=True,
-                intercept_scaling=1,
-                max_iter=100,
-                multi_class='ovr',
-                n_jobs=1,
-                penalty='l2',
-                random_state=None,
-                solver='liblinear',
-                tol=0.0001,
-                verbose=0,
-                warm_start=False), 'LogisticRegression'),
-        ]:
+        for clf, name in _new_classifiers():
 
             print('=' * 80)
             print(name)
@@ -675,13 +690,9 @@ def evaluate_dataset(benchmark_dataset):
             results.append(result)
 
 
-def _get_target_names(benchmark_dataset):
-    target_names = None
-    with (_DATASET_PREFIX / benchmark_dataset / 'intents.txt').open() as intent_file:
-        target_names = list(
-            x for x in intent_file.read().splitlines() if x)
-
-    return target_names
+def _get_target_names(benchmark_dataset, prefix=_DATASET_PREFIX) -> List[str]:
+    with (prefix / benchmark_dataset / 'intents.txt').open() as intent_file:
+        return list(x for x in intent_file.read().splitlines() if x)
 
 
 def _get_intent_dict(target_names):
@@ -691,10 +702,8 @@ def _get_intent_dict(target_names):
     return intent_dict
 
 
-def train_classifiers(benchmark_dataset):
-    target_names = _get_target_names(benchmark_dataset)
-
-    intent_dict = _get_intent_dict(target_names)
+def train_classifiers(benchmark_dataset):  #pylint: disable=too-many-locals
+    intent_dict = _get_intent_dict(_get_target_names(benchmark_dataset))
 
     dataset = MeraDataset(
         dataset_path=_DATASET_PREFIX / benchmark_dataset,
@@ -707,12 +716,15 @@ def train_classifiers(benchmark_dataset):
     splits = dataset.get_splits()
     xS_train = []
     yS_train = []
+    unknown_intents = set()
     for elem_x, elem_y in zip(splits[0]["train"]['X'],
                               splits[0]['train']['y']):
         try:
             yS_train.append(intent_dict[elem_y])
         except KeyError:
-            print('WARN: Ignored unknown intent "{}"'.format(elem_y))
+            if elem_y not in unknown_intents:
+                unknown_intents.add(elem_y)
+                print('WARN: Ignored unknown intent "{}"'.format(elem_y))
         else:
             xS_train.append(elem_x)
 
@@ -725,66 +737,112 @@ def train_classifiers(benchmark_dataset):
 
     X_train = vectorizer.transform(X_train_raw).toarray()
 
-    parameters_mlp = {
-        'hidden_layer_sizes': [(100, 50), (300, 100), (300, 200, 100)]
-    }
-    parameters_RF = {"n_estimators": [50, 60, 70], "min_samples_leaf": [1, 11]}
-    k_range = list(range(3, 7))
-    parameters_knn = {'n_neighbors': k_range}
-    knn = KNeighborsClassifier(n_neighbors=5)
-    classifiers = [
-        (GridSearchCV(knn, parameters_knn, cv=5), "gridsearchknn"),
-        (GridSearchCV(MLPClassifier(activation='tanh'), parameters_mlp, cv=5),
-         "gridsearchmlp"),
-        (GridSearchCV(
-            RandomForestClassifier(n_estimators=10), parameters_RF, cv=5),
-         "gridsearchRF"),
-        (MultinomialNB(alpha=.01), 'Sparse Naive Bayes (MultinomialNB)'),
-        (BernoulliNB(alpha=.01), 'Sparse Naive Bayes (BernoulliNB)'),
-        # The smaller C, the stronger the regularization.
-        # The more regularization, the more sparsity.
-        (LogisticRegression(
-            C=1.0,
-            class_weight=None,
-            dual=False,
-            fit_intercept=True,
-            intercept_scaling=1,
-            max_iter=100,
-            multi_class='ovr',
-            n_jobs=1,
-            penalty='l2',
-            random_state=None,
-            solver='liblinear',
-            tol=0.0001,
-            verbose=0,
-            warm_start=False), 'LogisticRegression'),
-    ]
+    classifiers = _new_classifiers()
     for clf, name in classifiers:
         print('=' * 80)
         print(name)
         clf.fit(X_train, y_train)
-    return classifiers, target_names, vectorizer
+    return classifiers, vectorizer
 
 
-def predict_intent(utterance, classifiers, target_names, vectorizer):
-    X_test_raw = [utterance]
-    X_test_raw = semhash_corpus(X_test_raw)
+def get_vectorized_utterance(utterance: str, vectorizer):
+    X_test_raw = semhash_corpus([utterance])
     X_test = vectorizer.transform(X_test_raw).toarray()
+    return X_test
+
+
+def predict_intent(vectorized_utterance, clf, target_names):
+    result = clf.predict(vectorized_utterance)
+    assert len(result) == 1
+    result_probs = clf.predict_proba(vectorized_utterance)
+    assert result_probs.shape[0] == 1
+    return target_names[result[0]], dict(zip(target_names, result_probs[0]))
+
+
+def print_intent_prediction(utterance, classifiers, vectorizer, target_names):
+    X_test = get_vectorized_utterance(utterance, vectorizer)
     for clf, name in classifiers:
         print('=' * 80)
         print(name)
-        result = clf.predict(X_test)
-        assert len(result) == 1
-        print('Intent:', target_names[result[0]])
-        if hasattr(clf, 'predict_proba'):
-            result_probs = clf.predict_proba(X_test)
-            assert result_probs.shape[0] == 1
-            for proba_name, prob in zip(target_names, result_probs[0]):
-                print('{} probability: {}'.format(proba_name, prob))
+        intent, intent_probs = predict_intent(X_test, clf, target_names)
+        print('Intent:', intent)
+        for proba_name, prob in intent_probs.items():
+            print('{} probability: {}'.format(proba_name, prob))
+
+
+def _get_data_hash(orig_csv: Path, intents_txt: Path) -> int:
+    return zlib.adler32(intents_txt.read_bytes(),
+                        zlib.adler32(orig_csv.read_bytes(), 0))
+
+
+def _do_fingerprints_match(fingerprint_path: Path, new_hash: int) -> bool:
+    if fingerprint_path.is_file():
+        try:
+            fingerprint_hash = int(fingerprint_path.read_text().strip())
+        except ValueError:
+            return False
+        return new_hash == fingerprint_hash
+    return False
+
+
+def _update_fingerprint(fingerprint_parent: Path, orig_data_path: Path,
+                        intents_txt_path: Path) -> bool:
+    new_hash = _get_data_hash(orig_data_path, intents_txt_path)
+    fingerprint_path = fingerprint_parent / 'data.fingerprint'
+    if _do_fingerprints_match(fingerprint_path, new_hash):
+        return False
+    fingerprint_path.write_text(str(new_hash))
+    return True
+
+
+def save_models(dataset_name: str, classifiers, vectorizer) -> None:
+    output_dir = _MODELS_PREFIX / dataset_name
+    output_dir.mkdir(parents=True)
+
+    # Write intents.txt
+    dataset_intents_txt = _DATASET_PREFIX / dataset_name / 'intents.txt'
+    model_intents_txt = output_dir / 'intents.txt'
+    model_intents_txt.write_bytes(dataset_intents_txt.read_bytes())
+
+    # Write vectorizer
+    joblib.dump(vectorizer, str(output_dir / VECTORIZER_FILENAME))
+
+    # Write classifiers
+    for clf, name in classifiers:
+        joblib.dump(clf, str(output_dir / (name + CLASSIFIER_FILENAME_SUFFIX)))
+
+
+def load_models(dataset_name: str, models_dir: Optional[Path] = None
+                ) -> Tuple[List[Tuple[Any, str]], Any, List[str]]:
+    input_dir: Path
+    if models_dir:
+        input_dir = models_dir
+    else:
+        input_dir = _MODELS_PREFIX / dataset_name
+
+    # Read vectorizer
+    vectorizer = joblib.load(str(input_dir / VECTORIZER_FILENAME))
+
+    # Read classifiers
+    classifiers: List[Tuple[Any, str]] = list()
+    for clf_path in input_dir.glob('*' + CLASSIFIER_FILENAME_SUFFIX):
+        name = clf_path.name[:-len(CLASSIFIER_FILENAME_SUFFIX)]
+        clf = joblib.load(str(clf_path))
+        classifiers.append((clf, name))
+
+    # Read intent names (target_names)
+    target_names = _get_target_names(dataset_name, prefix=_MODELS_PREFIX)
+
+    return classifiers, vectorizer, target_names
 
 
 def write_dataset_traintest(benchmark_dataset: str) -> None:
-    with (_DATASET_PREFIX / benchmark_dataset / 'orig_data.csv').open() as input_csv_file:
+    orig_data_path = _DATASET_PREFIX / benchmark_dataset / 'orig_data.csv'
+    intents_txt_path = _DATASET_PREFIX / benchmark_dataset / 'intents.txt'
+    if not _update_fingerprint(_DATASET_PREFIX / benchmark_dataset,
+                               orig_data_path, intents_txt_path):
+        return
+    with orig_data_path.open() as input_csv_file:
         orig_data = tuple(
             x.split('|') for x in input_csv_file.read().splitlines() if x)
     intent_to_examples = dict()
@@ -807,16 +865,32 @@ def write_dataset_traintest(benchmark_dataset: str) -> None:
         while intent_to_examples[intent]:
             train_examples.append('{}\t{}'.format(
                 intent_to_examples[intent].pop(), intent))
-    with (_DATASET_PREFIX / benchmark_dataset / 'train.csv').open('w') as output_csv_file:
+    with (_DATASET_PREFIX / benchmark_dataset /
+          'train.csv').open('w') as output_csv_file:
         output_csv_file.write('\n'.join(train_examples))
-    with (_DATASET_PREFIX / benchmark_dataset / 'test.csv').open('w') as output_csv_file:
+    with (_DATASET_PREFIX / benchmark_dataset /
+          'test.csv').open('w') as output_csv_file:
         output_csv_file.write('\n'.join(test_examples))
 
 
-def main() -> None:
+def _handle_state_predict() -> None:
+    dataset_name = input('Models to load: ')
+    classifiers, vectorizer, target_names = load_models(dataset_name)
+    while True:
+        try:
+            print('#' * 80)
+            print_intent_prediction(
+                input('Utterance: '), classifiers, vectorizer, target_names)
+        except KeyboardInterrupt:
+            print()
+            break
+
+
+def main() -> None:  #pylint: disable=too-many-branches
     _STATE_INIT = 0
     _STATE_PREDICT = 1
     _STATE_EVALUATE = 2
+    _STATE_TRAIN = 3
     state = _STATE_INIT
 
     # Program initialization
@@ -827,11 +901,14 @@ def main() -> None:
         try:
             if state == _STATE_INIT:
                 user_input = input(
-                    'Specify action (predict, evaluate): ').lower().strip()
+                    'Specify action (predict, evaluate, train): ').lower(
+                    ).strip()
                 if user_input == 'evaluate':
                     state = _STATE_EVALUATE
                 elif user_input == 'predict':
                     state = _STATE_PREDICT
+                elif user_input == 'train':
+                    state = _STATE_TRAIN
                 else:
                     print('ERROR: Invalid action. Specify again.')
                     state = _STATE_INIT
@@ -840,19 +917,19 @@ def main() -> None:
                 write_dataset_traintest(benchmark_dataset)
                 evaluate_dataset(benchmark_dataset)
             elif state == _STATE_PREDICT:
-                benchmark_dataset = input('Dataset to predict: ')
-                write_dataset_traintest(benchmark_dataset)
-                classifiers, target_names, vectorizer = train_classifiers(
-                    benchmark_dataset)
-                while True:
-                    try:
-                        print('#' * 80)
-                        predict_intent(
-                            input('Utterance: '), classifiers, target_names,
-                            vectorizer)
-                    except KeyboardInterrupt:
-                        print()
-                        break
+                _handle_state_predict()
+            elif state == _STATE_TRAIN:
+                dataset_name = input('Dataset to train against: ')
+                write_dataset_traintest(dataset_name)
+                print('INFO: Training against dataset...')
+                classifiers, vectorizer = train_classifiers(dataset_name)
+                print('INFO: Saving models under models/{} ...'.format(
+                    dataset_name))
+                save_models(dataset_name, classifiers, vectorizer)
+                state = _STATE_INIT
+            else:
+                print('ERROR: Invalid state', repr(state))
+                exit(1)
         except KeyboardInterrupt:
             print()
             if state in (_STATE_PREDICT, _STATE_EVALUATE):
