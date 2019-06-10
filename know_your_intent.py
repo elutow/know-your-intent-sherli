@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple, Any
 import csv
 import math
 import random
+import shutil
 import zlib
 
 import joblib
@@ -797,6 +798,8 @@ def _update_fingerprint(fingerprint_parent: Path, orig_data_path: Path,
 
 def save_models(dataset_name: str, classifiers, vectorizer) -> None:
     output_dir = _MODELS_PREFIX / dataset_name
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True)
 
     # Write intents.txt
